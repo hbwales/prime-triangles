@@ -1,15 +1,13 @@
 # PrimeTri
 
 Count primes on the left, centre and right of a triangle of consecutive integers.
-See the [illustrated guide](how-it-works.html) for the mathematics, CUDA implementation,
-[50-million-row results](how-it-works.html#results) and [measured scaling](how-it-works.html#scaling).
+See the [illustrated guide](how-it-works.html) for more details.
 
 ## Setup
 
 Install [Visual Studio 2026 Build Tools](https://visualstudio.microsoft.com/downloads/)
 with **Desktop development with C++** (x64 MSVC, C++ libraries and Windows SDK),
 then [CUDA Toolkit 13.4](https://developer.nvidia.com/cuda-downloads) and a compatible NVIDIA driver.
-The tested machine uses an RTX 5080 Laptop GPU (SM 12.0) and driver 592.01.
 
 ## Build
 
@@ -25,16 +23,15 @@ To initialize MSVC from an ordinary Command Prompt first, run:
 call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 ```
 
-`-arch=native` targets the GPU visible at build time; `--cudart=static` embeds the CUDA Runtime.
-`-lineinfo` retains source locations for profiling.
-
 ## Run
 
 ```bat
 tri.exe 50000000 > counts.csv 2> progress.txt
 ```
 
-Use `.\tri.exe` in PowerShell. Supply one row count from **1 to 143,165,576**.
+Use `.\tri.exe` in PowerShell. 
+Supply one row count from **1 to 143,165,576**.
 CSV columns `n,l,c,r` contain the row number and cumulative left, centre and right prime totals.
-Progress and final timings go to stderr. **Ctrl+C** finishes the current batch and flushes complete rows.
-See the [guide](how-it-works.html) for output semantics and analysis.
+Progress and final timings go to stderr. 
+
+**Ctrl+C** finishes the current batch and flushes complete rows.

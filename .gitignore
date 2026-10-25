@@ -6,5 +6,6 @@ progress_50m.txt
 results-50m.json
 results-50m.svg
 scaling.svg
-scaling-model.json
 analyse-results.sql
+scaling-model.json
+benchmark-small.json
