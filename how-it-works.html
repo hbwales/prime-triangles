@@ -1,0 +1,2526 @@
+<!doctype html> <html lang="en"> <head> <meta charset="utf-8"> <meta name="viewport" content="width=device-width,initial-scale=1"> <meta name="description" content="PrimeTri in execution order: memory allocation, prime generation, preparation, marking, counting and CSV output."> <title>PrimeTri: mathematics and CUDA implementation</title> <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css" integrity="sha384-3rdsX6e5mueWyoweR9NIVmtEsUkokpBT/0ALqKKIBMr9j4qhHkaIkAcGgsE6uVlp" crossorigin="anonymous"> <script defer src="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js" integrity="sha384-QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk" crossorigin="anonymous">
+</script> <script defer src="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/contrib/auto-render.min.js" integrity="sha384-bjyGPfbij8/NDKJhSGZNP/khQVgtHUE5exjm4Ydllo42FwIgYsdLO2lXGmRBf5Mz" crossorigin="anonymous" onload="renderMathInElement(document.body,{delimiters:[{left:'\\(',right:'\\)',display:false},{left:'\\[',right:'\\]',display:true}],throwOnError:false,ignoredTags:['script','noscript','style','textarea','pre','code','svg']})">
+</script> 
+<style> :root { color-scheme: dark; --bg: #0b1220; --panel: #131f31; --line: #304159; --text: #edf3fc; --muted: #b0bfd1; --left: #63c4ff; --centre: #ffd276; --right: #b49aff; --green: #74e1b5; --red: #ff9f9f; --code: #19283d } * { box-sizing: border-box } html { scroll-behavior: smooth; scroll-padding-top: 30px } body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.7 system-ui, -apple-system, "Segoe UI", sans-serif } a { color: var(--left); text-underline-offset: 4px } a:hover { color: var(--text) } header, main, footer { max-width: 1180px; margin: auto; padding: 40px 32px } header { padding-top: 80px; padding-bottom: 32px } .eyebrow { font: 700 12px/1.5 ui-monospace, monospace; letter-spacing: .18em; color: var(--green); text-transform: uppercase } h1 { font-size: clamp(38px, 6vw, 76px); line-height: 1.06; letter-spacing: -.055em; max-width: 1000px; margin: 20px 0 28px } h2 { font-size: clamp(27px, 3.5vw, 40px); line-height: 1.2; letter-spacing: -.03em; margin: 12px 0 24px } h3 { font-size: 21px; line-height: 1.35; margin: 28px 0 12px } p { max-width: 880px; margin: 15px 0 } .intro { font-size: 21px; color: var(--muted); max-width: 820px } .pills { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px } .pill { background: var(--panel); padding: 8px 14px; border-radius: 30px; font-size: 14px } .toc { display: flex; flex-wrap: wrap; gap: 10px 22px; border-block: 1px solid var(--line); padding: 22px 0; margin: 30px 0 0; font-size: 14px } .toc a { text-decoration: none } section { padding: 48px 0; border-bottom: 1px solid var(--line) } .section-id { color: var(--green); font: 700 13px ui-monospace, monospace; letter-spacing: .12em } .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px } .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px } .panel { background: var(--panel); border-radius: 16px; padding: 24px; margin: 24px 0; min-width: 0 } .panel h3:first-child { margin-top: 0 } .formula { font: clamp(16px, 2.2vw, 24px)/1.9 ui-monospace, SFMono-Regular, Consolas, monospace; padding: 22px 24px; background: var(--panel); border-left: 3px solid var(--green); margin: 24px 0; overflow: auto } .formula small { font: 15px/1.6 system-ui, sans-serif; color: var(--muted) } code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace } code { background: var(--code); padding: 2px 5px; border-radius: 4px; font-size: .87em } pre { background: var(--code); padding: 20px; border-radius: 10px; overflow: auto; font-size: 14px; line-height: 1.7 } pre code { padding: 0; background: none; font-size: inherit } .muted, figcaption, .caption { color: var(--muted); font-size: 14px } strong { font-weight: 650 } .left { color: var(--left) } .centre { color: var(--centre) } .right { color: var(--right) } .green { color: var(--green) } .note { border-left: 3px solid var(--centre); padding: 10px 20px; margin: 24px 0; background: #ffd27608 } .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 16px 0 20px } label { font-size: 15px } input[type=range] { width: 210px; accent-color: var(--green) } input[type=number], select, button { font: inherit; color: var(--text); background: var(--code); border: 1px solid var(--line); border-radius: 7px; padding: 7px 12px } input[type=number] { width: 145px } button { cursor: pointer } button:hover { border-color: var(--green) } :focus-visible { outline: 3px solid var(--green); outline-offset: 4px } output { font-variant-numeric: tabular-nums } .scroll { overflow-x: auto } .triangle { min-width: 640px; padding: 16px 0 } .tri-row { display: flex; justify-content: center; gap: 5px; margin: 5px 0 } .num { display: inline-grid; place-items: center; width: 35px; height: 35px; font-size: 13px; font-variant-numeric: tabular-nums; border-radius: 5px; background: #ffffff06; color: #91a3bb } .num.prime { font-weight: 750; color: var(--text); outline: 1px solid currentColor } .num.prime.l { background: #63c4ff30; color: var(--left) } .num.prime.c { background: #ffd27630; color: var(--centre) } .num.prime.r { background: #b49aff30; color: var(--right) } .tri-row.selected .num { box-shadow: 0 3px 0 #edf3fc50 } .legend { display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; margin: 12px 0 } .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: currentColor; margin-right: 7px } .stats { display: flex; gap: 28px; flex-wrap: wrap; margin: 18px 0 } .stat b { display: block; font: 650 29px/1.2 ui-monospace, monospace } .stat span { font-size: 13px; color: var(--muted) } svg { display: block; max-width: 100%; height: auto } svg text { font-family: system-ui, sans-serif; fill: var(--text) } svg .sub { fill: var(--muted); font-size: 13px } figure { margin: 24px 0 } figcaption { margin-top: 12px } .wheel-cells { display: grid; grid-template-columns: repeat(15, minmax(30px, 1fr)); gap: 5px; margin: 20px 0 } .wheel-cell { text-align: center; padding: 8px 0; background: #ffffff07; border-radius: 5px; font: 14px ui-monospace, monospace } .wheel-cell.eligible { background: #74e1b529; color: var(--green) } .wheel-cell.removed { background: #ff9f9f16; color: var(--red); text-decoration: line-through } .bit-row { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin: 20px 0 } .bit { text-align: center; padding: 12px 3px; background: #74e1b520; border-radius: 6px; font: 20px ui-monospace, monospace } .bit.off { color: var(--red); background: #ff9f9f15 } .bit small { display: block; font: 12px/1.8 system-ui, sans-serif; color: var(--muted) } .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0 } .flow-node { position: relative; border-top: 3px solid var(--green); background: var(--panel); padding: 18px } .flow-node b { display: block } .flow-node span { font-size: 14px; color: var(--muted) } .flow-node:not(:last-child):after { content: '→'; position: absolute; right: -13px; top: 18px; z-index: 1; color: var(--green) } table { width: 100%; border-collapse: collapse; font-size: 15px } th, td { text-align: left; vertical-align: top; padding: 12px 10px; border-bottom: 1px solid var(--line) } th { color: var(--muted); font-weight: 500 } td code { white-space: nowrap } .lane-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; min-width: 580px; margin: 18px 0 } .lane { background: #63c4ff15; padding: 8px 2px; text-align: center; border-radius: 4px; font: 13px/1.7 ui-monospace, monospace } .lane small { display: block; color: var(--muted); font-size: 11px } .strike-grid { display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; min-width: 650px } .strike { background: #ffffff07; text-align: center; padding: 7px 1px; font: 12px/1.7 ui-monospace, monospace; border-radius: 4px } .strike.hit { background: #ff9f9f20; color: var(--red) } .strike small { display: block; color: var(--muted); font-size: 10px } .metric { font: 700 32px/1.2 ui-monospace, monospace; color: var(--green); margin-bottom: 8px } .bar { display: flex; height: 36px; border-radius: 6px; overflow: hidden; background: #ffffff09; margin: 15px 0 } .bar span { display: flex; align-items: center; justify-content: center; font-size: 13px; color: #0b1220; font-weight: 700 } .tiny { font-size: 12px } details { margin: 18px 0 } summary { cursor: pointer; color: var(--left) } footer { padding-bottom: 64px; color: var(--muted); font-size: 14px } noscript { display: block; padding: 20px; background: var(--panel) } @media(max-width:750px) { header, main, footer { padding-left: 20px; padding-right: 20px } header { padding-top: 42px } .grid, .three { grid-template-columns: 1fr } .flow { grid-template-columns: 1fr 1fr } .flow-node:after { display: none } .panel { padding: 18px } .wheel-cells { grid-template-columns: repeat(10, 1fr) } .bit-row { gap: 4px } .bit { font-size: 17px } .formula { padding: 16px } .stats { gap: 20px } section { padding: 36px 0 } } @media print { :root { color-scheme: light; --bg: white; --panel: #f1f4f8; --line: #ccc; --text: #101b2d; --muted: #475569; --left: #00649e; --centre: #815800; --right: #6940a8; --green: #006843; --red: #a51c30; --code: #e9edf3 } body { font-size: 11pt } header, main, footer { padding: 12px } h1 { font-size: 36pt } section { break-before: auto } .panel, figure, pre { break-inside: avoid } .controls, .toc { display: none } .scroll { overflow: visible } a { color: inherit } } figure { overflow-x: auto } figure svg { min-width: 680px } @media(prefers-reduced-motion:reduce) { html { scroll-behavior: auto } } @media print { figure svg { min-width: 0 } } body { font-size: 15px; line-height: 1.6 } header, main, footer { max-width: 1180px; padding: 20px 28px } header { padding-top: 30px; padding-bottom: 0 } main { padding-top: 0 } h1 { font-size: 30px; line-height: 1.2; letter-spacing: -.025em; margin: 0 0 8px; max-width: none } h2 { font-size: 23px; line-height: 1.25; margin: 0 0 12px; letter-spacing: -.015em } h3 { font-size: 17px; margin: 20px 0 8px } p { margin: 10px 0; max-width: 960px } .intro { font-size: 15px; max-width: none; margin: 0 } .toc { gap: 5px 18px; padding: 12px 0; margin: 18px 0 0; font-size: 13px } section { padding: 26px 0 } .section-id { font: 500 11px/1.4 ui-monospace, monospace; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px } .panel { border-radius: 7px; padding: 16px; margin: 16px 0 } .formula { font: inherit; background: none; border: 0; padding: 0; margin: 14px 0 } .formula .katex-display { margin: .6em 0; text-align: left } .formula .katex-display>.katex { text-align: left } .katex { font-size: 1.07em } .katex-display { overflow-x: auto; overflow-y: hidden; padding: 3px 0 } .note { margin: 16px 0; padding: 8px 14px } .three, .grid { gap: 18px } .metric { font-size: 24px } .stat b { font-size: 24px } .stats { margin: 12px 0; gap: 24px } .flow { margin: 16px 0 } .flow-node { padding: 12px; border-top-width: 2px } .controls { gap: 10px; margin: 10px 0 14px } .legend { gap: 16px; font-size: 12px } .caption, figcaption, .muted { font-size: 13px } pre { font-size: 13px; padding: 14px; margin: 12px 0 } th, td { padding: 8px } table { font-size: 14px } figure { margin: 16px 0 } footer { padding-bottom: 28px; font-size: 12px } .setup-scroll { overflow-x: auto; margin: 16px 0 12px } .setup-grid { display: grid; grid-template-columns: 395px minmax(600px, 1fr); column-gap: 20px; min-width: 1015px } .setup-heading { height: 48px; display: flex; align-items: center; font-weight: 600; font-size: 13px; border-bottom: 1px solid var(--line) } .setup-triangle { padding: 0; min-width: 0 } .setup-triangle .tri-row { height: 32px; gap: 2px; margin: 0; align-items: center; border-bottom: 1px solid #30415955 } .setup-triangle .num { width: 21px; height: 24px; font-size: 11px; border-radius: 3px; background: none } .setup-triangle .num.prime { outline: 0 } .setup-triangle .num.prime.l { background: #63c4ff25 } .setup-triangle .num.prime.c { background: #ffd27625 } .setup-triangle .num.prime.r { background: #b49aff25 } .setup-table { table-layout: fixed; font-size: 13px; font-variant-numeric: tabular-nums } .setup-table th, .setup-table td { text-align: center; vertical-align: middle; padding: 0 4px; white-space: nowrap } .setup-table thead tr { height: 48px } .setup-table thead th { font-weight: 500; line-height: 1.4 } .setup-table thead small { display: block; font-size: 11px } .setup-table tbody tr { height: 32px } .setup-table td .triple { display: inline-grid; grid-template-columns: repeat(3, 20px); gap: 3px } .setup-table tfoot tr { height: 70px } .setup-table tfoot td { font-size: 11px; white-space: normal; background: var(--panel) } .setup-table th:first-child { width: 38px } .setup-table th:nth-child(2) { width: 112px } .setup-table th:nth-child(3) { width: 104px } .setup-table th:nth-child(4) { width: 54px } .setup-bottom { height: 70px; display: flex; align-items: center; font-size: 12px; color: var(--muted) } .definitions { font-size: 14px } .definitions .formula { margin: 10px 0 } @media(max-width:750px) { header, main, footer { padding-left: 18px; padding-right: 18px } header { padding-top: 22px } h1 { font-size: 25px } h2 { font-size: 21px } section { padding: 22px 0 } .panel { padding: 14px } .formula { padding: 0 } .setup-scroll { margin-right: -4px } } @media print { header, main, footer { padding: 8px } .setup-grid { grid-template-columns: 395px minmax(600px, 1fr); transform-origin: top left } .setup-scroll { overflow: auto } h1 { font-size: 23pt } h2 { font-size: 17pt } body { font-size: 10pt } } .setup-bottom { display: block; padding-top: 22px; line-height: 1.6 } .setup-legend { gap: 20px; font-size: 12px; font-weight: 400 } .setup-bottom { height: auto; padding-top: 14px } .setup-table { align-self: start } .run-overview { margin: 20px 0 0; padding: 14px 0; border-bottom: 1px solid var(--line) } .run-overview p { margin: 5px 0 } .run-order { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 } .run-order a { font-size: 12px; text-decoration: none; background: var(--panel); padding: 4px 8px; border-radius: 4px } .run-order a:not(:last-child)::after { content: ' →'; color: var(--muted) } .memory-state { display: grid; grid-template-columns: 1fr 1fr .85fr; gap: 12px; margin: 16px 0; font-size: 13px } .memory-cell { background: var(--panel); padding: 12px; border-radius: 5px; min-width: 0 } .memory-cell h3 { font-size: 13px; margin: 0 0 8px; color: var(--muted) } .memory-cell ul { list-style: none; padding: 0; margin: 0 } .memory-cell li { margin: 5px 0 } .memory-cell code { font-size: 12px; overflow-wrap: anywhere } .memory-cell .new { color: var(--green) } .memory-cell small { font-size: 11px; color: var(--muted) } .scope { font-size: 12px; color: var(--muted); margin-top: 4px } .code-note { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; font-size: 13px; margin-bottom: 12px } .code-note code { color: var(--green) } .code-note span { color: var(--muted) } .detail-columns { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px } .memory-table td:nth-child(n+2) { font-variant-numeric: tabular-nums } .bitpack { display: grid; grid-template-columns: 1fr 3fr; gap: 4px; margin: 16px 0 } .bitpack div { padding: 12px; background: var(--panel); text-align: center; font-size: 13px } .bitpack div:first-child { border-top: 2px solid var(--centre) } .bitpack div:last-child { border-top: 2px solid var(--left) } .bitpack small { display: block; color: var(--muted); font-size: 12px } .lane-grid { min-width: 560px } .stage-lifetime td { font-size: 12px } .stage-lifetime td:first-child { white-space: nowrap } .stage-lifetime .written { color: var(--green) } .stage-lifetime .read { color: var(--left) } .stage-lifetime .empty { color: var(--muted) } .stage-lifetime th { font-size: 12px } .checkpoints { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 } .checkpoints span { padding: 5px 9px; background: var(--panel); font-size: 12px; border-radius: 4px } .inline-source { font-size: 12px; color: var(--muted) } .tight-list { padding-left: 20px } .tight-list li { margin: 7px 0 } .math-caption { font-size: 13px; color: var(--muted) } @media(max-width:750px) { .memory-state, .detail-columns { grid-template-columns: 1fr } .memory-state { gap: 7px } .memory-cell { padding: 10px } .bitpack { min-width: 560px } .bitpack-wrap { overflow: auto } } 
+</style> </head> <body> 
+<main> 
+<section id="triangle"> 
+<div class="section-id">01
+</div> 
+<h2>Problem setup</h2> 
+<p>Arrange consecutive positive integers in rows of lengths \(1,3,5,\ldots\), and count the primes to the left of, at, and to the right of each row's centre.
+</p> 
+<div class="setup-scroll"> 
+<div class="setup-grid"> 
+<div> 
+<div class="setup-heading setup-legend"><span class="left"><i class="dot"></i>Left prime</span><span class="centre"><i class="dot"></i>Centre prime</span><span class="right"><i class="dot"></i>Right prime</span>
+</div> 
+<div class="setup-triangle" role="img" aria-label="First nine rows of consecutive integers; prime cells are coloured by left, centre or right position"> 
+<div class="tri-row" aria-label="Row 1: 1 through 1"><span class="num">1</span>
+</div> 
+<div class="tri-row" aria-label="Row 2: 2 through 4"><span class="num prime l">2</span><span class="num prime c">3</span><span class="num">4</span>
+</div> 
+<div class="tri-row" aria-label="Row 3: 5 through 9"><span class="num prime l">5</span><span class="num">6</span><span class="num prime c">7</span><span class="num">8</span><span class="num">9</span>
+</div> 
+<div class="tri-row" aria-label="Row 4: 10 through 16"><span class="num">10</span><span class="num prime l">11</span><span class="num">12</span><span class="num prime c">13</span><span class="num">14</span><span class="num">15</span><span class="num">16</span>
+</div> 
+<div class="tri-row" aria-label="Row 5: 17 through 25"><span class="num prime l">17</span><span class="num">18</span><span class="num prime l">19</span><span class="num">20</span><span class="num">21</span><span class="num">22</span><span class="num prime r">23</span><span class="num">24</span><span class="num">25</span> 
+</div> 
+<div class="tri-row" aria-label="Row 6: 26 through 36"><span class="num">26</span><span class="num">27</span><span class="num">28</span><span class="num prime l">29</span><span class="num">30</span><span class="num prime c">31</span><span class="num">32</span><span class="num">33</span><span class="num">34</span><span class="num">35</span><span class="num">36</span>
+</div> 
+<div class="tri-row" aria-label="Row 7: 37 through 49"><span class="num prime l">37</span><span class="num">38</span><span class="num">39</span><span class="num">40</span><span class="num prime l">41</span><span class="num">42</span><span class="num prime c">43</span><span class="num">44</span><span class="num">45</span><span class="num">46</span><span class="num prime r">47</span><span class="num">48</span><span class="num">49</span> 
+</div> 
+<div class="tri-row" aria-label="Row 8: 50 through 64"><span class="num">50</span><span class="num">51</span><span class="num">52</span><span class="num prime l">53</span><span class="num">54</span><span class="num">55</span><span class="num">56</span><span class="num">57</span><span class="num">58</span><span class="num prime r">59</span><span class="num">60</span><span class="num prime r">61</span><span class="num">62</span><span class="num">63</span><span class="num">64</span>
+</div> 
+<div class="tri-row" aria-label="Row 9: 65 through 81"><span class="num">65</span><span class="num">66</span><span class="num prime l">67</span><span class="num">68</span><span class="num">69</span><span class="num">70</span><span class="num prime l">71</span><span class="num">72</span><span class="num prime c">73</span><span class="num">74</span><span class="num">75</span><span class="num">76</span><span class="num">77</span><span class="num">78</span><span class="num prime r">79</span><span class="num">80</span><span class="num">81</span>
+</div> 
+</div> 
+<div class="setup-bottom">Row \(n\) has \(2n-1\) entries, with \(n-1\) on each side.
+</div> 
+</div> 
+<table class="setup-table" aria-label="Row boundaries, per-row prime counts and cumulative prime counts"> <thead> 
+<tr> <th scope="col">Row<small>\(n\)</small></th> <th scope="col">First<small>\(a_n\)</small></th> <th scope="col">Centre<small>\(m_n\)</small></th> <th scope="col">Last<small>\(b_n\)</small></th> <th scope="col">This row<small>\((\ell_n,c_n,r_n)\)</small></th> <th scope="col">Cumulative<small>\((L_n,C_n,R_n)\)</small></th> 
+</tr> </thead> <tbody> 
+<tr> <th scope="row">1</th> <td>1</td> <td>1</td> <td>1</td> <td><span class="triple"><span class="left">0</span><span class="centre">0</span><span class="right">0</span></span></td> <td><span class="triple"><span class="left">0</span><span class="centre">0</span><span class="right">0</span></span></td> 
+</tr> 
+<tr> <th scope="row">2</th> <td>2</td> <td>3</td> <td>4</td> <td><span class="triple"><span class="left">1</span><span class="centre">1</span><span class="right">0</span></span></td> <td><span class="triple"><span class="left">1</span><span class="centre">1</span><span class="right">0</span></span></td> 
+</tr> 
+<tr> <th scope="row">3</th> <td>5</td> <td>7</td> <td>9</td> <td><span class="triple"><span class="left">1</span><span class="centre">1</span><span class="right">0</span></span></td> <td><span class="triple"><span class="left">2</span><span class="centre">2</span><span class="right">0</span></span></td> 
+</tr> 
+<tr> <th scope="row">4</th> <td>10</td> <td>13</td> <td>16</td> <td><span class="triple"><span class="left">1</span><span class="centre">1</span><span class="right">0</span></span></td> <td><span class="triple"><span class="left">3</span><span class="centre">3</span><span class="right">0</span></span></td> 
+</tr> 
+<tr> <th scope="row">5</th> <td>17</td> <td>21</td> <td>25</td> <td><span class="triple"><span class="left">2</span><span class="centre">0</span><span class="right">1</span></span></td> <td><span class="triple"><span class="left">5</span><span class="centre">3</span><span class="right">1</span></span></td> 
+</tr> 
+<tr> <th scope="row">6</th> <td>26</td> <td>31</td> <td>36</td> <td><span class="triple"><span class="left">1</span><span class="centre">1</span><span class="right">0</span></span></td> <td><span class="triple"><span class="left">6</span><span class="centre">4</span><span class="right">1</span></span></td> 
+</tr> 
+<tr> <th scope="row">7</th> <td>37</td> <td>43</td> <td>49</td> <td><span class="triple"><span class="left">2</span><span class="centre">1</span><span class="right">1</span></span></td> <td><span class="triple"><span class="left">8</span><span class="centre">5</span><span class="right">2</span></span></td> 
+</tr> 
+<tr> <th scope="row">8</th> <td>50</td> <td>57</td> <td>64</td> <td><span class="triple"><span class="left">1</span><span class="centre">0</span><span class="right">2</span></span></td> <td><span class="triple"><span class="left">9</span><span class="centre">5</span><span class="right">4</span></span></td> 
+</tr> 
+<tr> <th scope="row">9</th> <td>65</td> <td>73</td> <td>81</td> <td><span class="triple"><span class="left">2</span><span class="centre">1</span><span class="right">1</span></span></td> <td><span class="triple"><span class="left">11</span><span class="centre">6</span><span class="right">5</span></span></td> 
+</tr> </tbody> 
+</table> 
+</div> 
+</div> 
+</section> 
+<section id="base-primes"> 
+<div class="section-id">02
+</div> 
+<h2>Generate base primes and allocate the batch buffers</h2> 
+<div class="code-note"><code>make_base_primes(num_rows) → cudaMalloc → cudaMemcpy</code><span>CPU setup, then one upload</span>
+</div> 
+<p>The CPU sieves integers through \(N=\texttt{num\_rows}\), then builds sorted <code>BasePrime</code> records for primes from 19 through N. Each record contains p, a 32-bit reciprocal and a 64-bit reciprocal: 16 bytes on this build.
+</p> 
+<div class="detail-columns"> 
+<div> 
+<h3>Why only primes through N?</h3> 
+<p>Every composite \(x\le N^2\) has a prime factor \(p\le\sqrt{x}\le N\). Multiples start at \(p^2\): smaller composites already have a smaller prime factor, and p itself must remain set. 
+</p> 
+<p>The temporary CPU sieve is destroyed when <code>make_base_primes</code> returns. The resulting <code>base_primes</code> vector stays alive because the CPU uses it to find each batch's active-prime count.
+</p> 
+</div> 
+<div> 
+<h3>What each record stores</h3> <pre><code>BasePrime {
+    u32 prime;
+    u32 reciprocal32; // floor(2^32 / p)
+    u64 reciprocal64; // floor(2^64 / p)
+}</code></pre> 
+<p class="caption">For odd p, <code>~0ull / p</code> gives the required 64-bit reciprocal: p cannot divide \(2^{64}\). Tiny inputs retain one harmless p = 19 record.
+</p> 
+</div> 
+</div> 
+<p>The host computes \(\texttt{last\_number}=N^2\) and rounds the wheel-byte length up to a multiple of four. It allocates <code>gpu_sieve</code>, uploads <code>gpu_base_primes</code>, and allocates <code>gpu_prepared_primes</code>. The latter two have one record per base prime. Runs through 8m rows use tile marking alone. Larger runs split at p = 2m and allocate <code>gpu_sparse_state</code>: one packed u32 per prime above that cutoff. <code>sparse_begin</code> marks the first of these records; the offsets are initialized lazily when primes first become active.
+</p> 
+<div class="formula">\[S=4\left\lceil\frac{\lfloor N^2/30\rfloor+1}{4}\right\rceil,\qquad |\texttt{gpu\_sieve}|=\min(S,256\,\mathrm{MiB}).\]
+</div> 
+<p class="caption">S is the total logical sieve length swept across the run. It is not allocated all at once.
+</p> 
+<div class="memory-state" aria-label="Memory state after this step"> 
+<div class="memory-cell"> 
+<h3>CPU RAM</h3> 
+<ul> 
+<li><code>base_primes</code>: sorted records
+</li> 
+<li>Temporary byte sieve through N: <span class="muted">destroyed</span>
+</li> 
+<li><code>last_number</code>, <code>total_bytes</code>: scalars
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU global memory</h3> 
+<ul> 
+<li><code>gpu_sieve</code>: allocated, <span class="muted">uninitialized</span>
+</li> 
+<li><code>gpu_base_primes</code>: <span class="new">uploaded</span>
+</li> 
+<li><code>gpu_prepared_primes</code>: allocated, <span class="muted">uninitialized</span>
+</li>
+<li><code>gpu_sparse_state</code>: optional, <span class="muted">uninitialized until activation</span>
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU registers / shared memory</h3> 
+<ul> 
+<li>No kernel launched
+</li> 
+<li>Prime records have not been prepared yet
+</li> 
+</ul> 
+</div> 
+</div> 
+</section> 
+<section id="pattern"> 
+<div class="section-id">03
+</div> 
+<h2>Build and upload the repeating pre-sieve</h2> 
+<div class="code-note"><code>make_presieve_pattern() → cudaMemcpy(gpu_pattern, …)</code><span>CPU construction, GPU global-memory table</span>
+</div> 
+<p>Before discussing the pattern, the representation matters: one byte stores the eight residues coprime to 30, in the order \(1,7,11,13,17,19,23,29\). A set bit means the represented number has not been eliminated.
+</p> 
+<div class="formula">\[x=30q+r\quad\longmapsto\quad\text{byte }q,\quad\text{bit }\operatorname{index}(r).\] 
+</div> 
+<div class="panel"> 
+<h3>The modulo-30 byte</h3> 
+<div class="controls"><label for="wheel-block">Byte index q</label><input id="wheel-block" type="number" min="0" max="1000000" value="1"><label for="wheel-stage">View</label><select id="wheel-stage"> <option value="wheel">Wheel only</option> <option value="presieve">After pre-sieve + first-byte repair</option> <option value="prime">After full sieve</option> </select>
+</div> 
+<div id="wheel-cells" class="wheel-cells" role="img" aria-label="Thirty integers and their candidate status">
+</div> 
+<div id="wheel-bits" class="bit-row" role="img" aria-label="Eight bits in increasing residue order"> 
+</div> 
+<p id="wheel-description" aria-live="polite">
+</p> 
+<p class="caption">Green: represented and still set. Crossed out: represented but cleared. Plain cells have no bit. Display runs from bit 0 to bit 7, opposite the usual printed binary order. “Full sieve” is computed locally for this small illustration.
+</p> 
+</div> 
+<p>The CPU starts with all candidate bits set, then clears represented multiples of 7, 11, 13 and 17. This pattern repeats every \(P=7\cdot11\cdot13\cdot17=17017\) bytes, or 510,510 integer positions.
+</p> <pre><code>words[i] = pattern[(4*i + 0) % P]
+         | pattern[(4*i + 1) % P] &lt;&lt; 8
+         | pattern[(4*i + 2) % P] &lt;&lt; 16
+         | pattern[(4*i + 3) % P] &lt;&lt; 24;</code></pre> 
+<p>The returned array has P packed 32-bit words: 68,068 bytes. Since P is odd, stepping four bytes visits every alignment in the byte period. The helper's 17,017-byte working array disappears on return; the packed CPU array remains in <code>run</code> and is copied once to <code>gpu_pattern</code>.
+</p> 
+<p>Other device tables—<code>bits[30]</code>, <code>residues[8]</code> and <code>through[30]</code>—are statically initialized read-only device arrays. Ordinary read-only loads allow different lanes to request different entries without the distinct-address serialization associated with constant-memory broadcasts.
+</p> 
+<div class="memory-state" aria-label="Memory state after this step"> 
+<div class="memory-cell"> 
+<h3>CPU RAM</h3> 
+<ul> 
+<li><code>pattern</code>: 68,068 packed bytes
+</li> 
+<li>Helper byte template: <span class="muted">destroyed</span>
+</li> 
+<li><small>Earlier CPU arrays remain allocated until <code>run</code> returns.</small>
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU global memory</h3> 
+<ul> 
+<li><code>gpu_pattern</code>: <span class="new">uploaded</span>
+</li> 
+<li>Earlier sieve / prime buffers retained
+</li> 
+<li>Static residue tables already initialized
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU registers / shared memory</h3> 
+<ul> 
+<li>No kernels running
+</li> 
+<li>The pattern has not filled the sieve yet
+</li> 
+</ul> 
+</div> 
+</div> 
+</section> 
+<section id="row-counts">
+<div class="section-id">04
+</div>
+<h2>Zero GPU counts and upload the small-prime seeds</h2>
+<div class="code-note"><code>cudaMemset(gpu_counts, 0, …) → four seed records</code><span>Persistent GPU counts, small reusable CPU staging vector</span>
+</div> 
+<p><code>gpu_counts</code> has N + 1 <code>RowCounts</code> entries: each is three u32 fields, index zero unused. The GPU clears this array directly. Only the first four records are uploaded, clipped for tiny inputs:
+</p> <pre><code>row 0: {0, 0, 0} // unused
+row 1: {0, 0, 0}
+row 2: {1, 1, 0} // 2 on left, 3 at centre
+row 3: {1, 0, 0} // 5 on left</code></pre> 
+<p>This is at most 48 bytes of seed data, replacing the full-array upload. The GPU retains all rows' partial counts. The CPU's <code>counts</code> vector starts empty and is resized only for the newly complete rows being read back; its maximum normal-run size is about 1.03 MiB.
+</p> 
+<div class="scroll">
+<table class="memory-table"><thead>
+<tr><th>Array payload</th><th>5 million rows</th><th>50 million rows</th>
+</tr></thead><tbody> 
+<tr><td>Row counts (GPU only)</td><td>57.22 MiB</td><td>572.20 MiB</td>
+</tr> 
+<tr><td>CPU readback buffer (maximum)</td><td>1.03 MiB</td><td>1.03 MiB</td>
+</tr> 
+<tr><td>Base-prime array (each of CPU and GPU)</td><td>5.32 MiB</td><td>45.79 MiB</td>
+</tr> 
+<tr><td>Prepared-prime array (GPU only)</td><td>5.32 MiB</td><td>45.79 MiB</td>
+</tr> 
+<tr><td>Sparse carry (GPU only, large runs)</td><td>0</td><td>10.88 MiB</td>
+</tr> 
+<tr><td>Principal GPU buffers including batch sieve</td><td>323.92 MiB</td><td>930.74 MiB</td>
+</tr> </tbody>
+</table>
+</div> 
+<p class="caption">Payloads exclude spare vector capacity, allocator overhead and the CUDA context. π(50m) = 3,001,134 and π(2m) = 148,933, so 2,852,201 primes need four-byte carry state. Runs through 8m rows allocate no sparse carry. The temporary CPU base-prime sieve is freed before count initialization.
+</p> 
+<p>At 50m, the full 600,000,012-byte CPU count array is gone. The retained CPU array payload is about 47 MiB, mainly base-prime records; actual vector capacity can be larger. The GPU uses about 0.91 GiB of principal buffers. A short initialization-only benchmark measured roughly 198 ms for CPU zeroing plus full upload, versus 1.3 ms for device zeroing plus the small seed upload; this saves startup time, not hours of marking.
+</p> 
+<div class="memory-state" aria-label="Memory state after this step">
+<div class="memory-cell">
+<h3>CPU RAM</h3>
+<ul>
+<li><code>counts</code>: <span class="new">empty reusable staging vector</span>
+</li>
+<li><code>small_counts[4]</code>: 48-byte seed records
+</li>
+<li>Base primes and packed pattern retained
+</li>
+</ul>
+</div>
+<div class="memory-cell">
+<h3>GPU global memory</h3>
+<ul>
+<li><code>gpu_counts</code>: <span class="new">zeroed on GPU, then seeds uploaded</span>
+</li>
+<li>Six application buffers when sparse state is needed
+</li>
+<li><code>gpu_sparse_state</code> not yet initialized
+</li>
+</ul>
+</div>
+<div class="memory-cell">
+<h3>GPU registers / shared memory</h3>
+<ul>
+<li>No per-block storage yet
+</li>
+<li>All count initialization is complete before kernels run
+</li>
+</ul>
+</div>
+</div> 
+</section> 
+<section id="batch"> 
+<div class="section-id">05
+</div> 
+<h2>Choose the next batch and its intersecting rows</h2> 
+<div class="code-note"><code>for (first_byte …) → active primes → BatchParams</code><span>CPU loop; no new GPU allocation</span>
+</div> 
+<p>Each iteration advances by 256 MiB of wheel bytes. B = <code>first_byte</code> is an absolute wheel-byte index; <code>byte_count</code> can be smaller in the last batch. Their represented integer interval is clipped to the requested endpoint:
+</p> 
+<div class="formula">\[\begin{aligned}\mathrm{lo}&=30B, &\mathrm{hi}&=\min(30(B+\text{byte count})-1,N^2),\\\text{first row}&=\begin{cases}1,&B=0\\\lfloor\sqrt{\mathrm{lo}-1}\rfloor+1,&B>0,\end{cases}\\\text{last complete row}&=\lfloor\sqrt{\mathrm{hi}}\rfloor, &\text{last intersecting row}&=\lceil\sqrt{\mathrm{hi}}\rceil.\end{aligned}\]
+</div> 
+<p><code>integer_sqrt</code> corrects a floating-point estimate with integer divisions, so these row boundaries are exact. The CPU advances <code>num_active_primes</code> while \(p^2\le\mathrm{hi}\). Larger primes cannot yet have a required strike.
+</p> 
+<figure><svg viewBox="0 0 1000 240" role="img" aria-labelledby="batch-title"> <title id="batch-title">One row split across two sequential batches</title><text x="20" y="28">Integer number line →</text> <rect x="20" y="53" width="470" height="45" fill="#63c4ff25" /> <rect x="490" y="53" width="490" height="45" fill="#b49aff25" /><text x="40" y="82">Batch A</text><text x="510" y="82">Batch B</text> <path d="M490 45V205" stroke="#ffd276" stroke-width="2" stroke-dasharray="5 5" /> <rect x="175" y="125" width="610" height="44" rx="6" fill="#23433c" /><text x="480" y="154" text-anchor="middle">Row n: [(n − 1)² + 1, n²]</text><text x="175" y="200" class="sub">A adds partial counts</text><text x="550" y="200" class="sub">B adds remainder → CPU emits row</text><text x="498" y="225" class="sub">batch boundary</text> </svg> <figcaption>Only one count block updates a particular row within a batch. The default stream orders contributions from successive batches, so these additions need no atomics.</figcaption> 
+</figure> 
+<p>The host assembles <code>BatchParams</code>: first byte, byte count, active-prime count, first row, row count and pattern offset. It passes this small object by value to each kernel. This does not allocate another global array. The dummy prime keeps the tiny-input launch valid; its anchor cannot strike the batch.
+</p> 
+<p>Four event records delimit <code>prepare → mark_batch → count</code>. Marking includes the regular tile kernel and any required sparse-window kernels. All launches use the default stream, so each stage finishes before the next consumes its output.
+</p> 
+<div class="memory-state" aria-label="Memory state after this step"> 
+<div class="memory-cell"> 
+<h3>CPU RAM</h3> 
+<ul> 
+<li><code>BatchParams batch</code>: <span class="new">current bounds and active count</span> 
+</li> 
+<li><code>rows_written</code>: last emitted row
+</li>
+<li><code>previous_active</code>: active count before this batch
+</li> 
+<li>Earlier CPU arrays retained
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU global memory</h3> 
+<ul> 
+<li>Same GPU buffers; <span class="muted">no allocation or clearing here</span>
+</li> 
+<li><code>gpu_counts</code> retains prior partial rows
+</li> 
+<li>Sieve / prepared buffers will be overwritten
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU registers / shared memory</h3> 
+<ul> 
+<li>Kernel parameters copied by value on launch
+</li> 
+<li>No block-local storage until execution
+</li> 
+</ul> 
+</div> 
+</div> 
+</section> 
+<section id="prepare"> 
+<div class="section-id">06
+</div> 
+<h2>Prepare each active prime for this batch</h2> 
+<div class="code-note"><code>prepare_kernel&lt;&lt;&lt;…, 256&gt;&gt;&gt;(…)</code><span>GPU: one thread per active prime</span>
+</div> 
+<p>A preparation thread reads one <code>BasePrime</code> and writes one 16-byte <code>PreparedPrime</code>. Absolute positions need u64; the resulting anchor lets tile marking mostly use bounded 32-bit arithmetic.
+</p> 
+<div class="formula">\[t_0=\max\left(\left\lfloor\frac Bp\right\rfloor,\left\lfloor\frac p{30}\right\rfloor\right),\qquad\text{anchor}=pt_0-B.\]
+</div> 
+<p>Write a wheel-eligible multiplier as \(k=30t+r_j\). Then \(\lfloor pk/30\rfloor=pt+\lfloor pr_j/30\rfloor\). For each phase j, successive turns advance p bytes and keep the same output bit.
+</p> <pre><code>u32 wheel = (turn == p/30 ? p % 30 : 0) &lt;&lt; 24;
+#pragma unroll
+for (u32 phase = 0; phase &lt; 8; ++phase) {
+    u32 r = (p % 30) * residues[phase] % 30;
+    wheel |= __popc(residue_mask &amp; ((1u &lt;&lt; r) - 1u)) &lt;&lt; (phase*3);
+}</code></pre> 
+<div class="bitpack-wrap"> 
+<div class="bitpack" role="img" aria-label="Packed wheel record: high bits restrict the first multiplier; low 24 bits contain eight three-bit output indices"> 
+<div>High bits<small>Minimum first-turn multiplier residue</small>
+</div> 
+<div>Low 24 bits<small>phase 7 · phase 6 · … · phase 1 · phase 0<br>eight 3-bit indices, not eight candidate flags</small>
+</div> 
+</div> 
+</div> 
+<p>The population count maps the product residue to its bit index. The unrolled loop computes all eight mappings directly and packs their 3-bit indices into <code>wheel</code>. The high bits enforce \(k\ge p\) on the first turn, which enforces \(pk\ge p^2\) without striking p itself.
+</p> <details> <summary>Why reciprocal division is exact</summary> 
+<p>For word width w, the CPU stores \(R=\lfloor2^w/p\rfloor\). The high half of nR gives an estimate at most one below the exact quotient:
+</p> 
+<div class="formula">\[q_0=\operatorname{high}_w(nR),\qquad\left\lfloor\frac np\right\rfloor=q_0+\mathbf1_{\{n-q_0p\ge p\}}.\]
+</div> 
+<p><code>floor64</code> does this once per active prime per batch. <code>locate</code> uses <code>floor32</code> within each tile. The one correction preserves exactness; no floating-point reciprocal is involved.
+</p> </details> 
+<div class="memory-state" aria-label="Memory state after this step"> 
+<div class="memory-cell"> 
+<h3>CPU RAM</h3> 
+<ul> 
+<li>CPU vectors unchanged
+</li> 
+<li>Host queues this kernel and the next event
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU global memory</h3> 
+<ul> 
+<li><code>gpu_base_primes</code>: read
+</li> 
+<li><code>gpu_prepared_primes[0..num_primes)</code>: <span class="new">overwritten</span>
+</li> 
+<li>Other buffers unchanged
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU registers / shared memory</h3> 
+<ul> 
+<li>Per-thread registers: p, turn, anchor, packed wheel
+</li> 
+<li>No shared-memory array
+</li> 
+<li>Register values expire when the thread finishes
+</li> 
+</ul> 
+</div> 
+</div> 
+</section> 
+<section id="mark"> 
+<div class="section-id">07
+</div> 
+<h2>Mark regular primes, then apply persistent sparse strikes</h2> 
+<div class="code-note"><code>mark_batch → mark_kernel → scatter_kernel</code><span>GPU: shared tiles, then one thread per sparse prime</span>
+</div> 
+<p><code>mark_batch</code> passes the active-prime prefix through 2,000,000 to <code>mark_kernel</code>. Each block owns up to 98,304 wheel bytes, representing 2,949,120 integers. Runs through 8m rows instead pass all active primes to the tiled kernel. The block has 1,024 threads (32 warps). A full 256 MiB batch launches 2,731 blocks; the last owns only 64 KiB of valid data but requests the same 96 KiB shared allocation.
+</p> 
+<div class="flow"> 
+<div class="flow-node"><b>1 · Initialize</b><span>Read repeating pattern into shared words.</span>
+</div> 
+<div class="flow-node"><b>2 · Barrier</b><span>All words initialized before any clear.</span>
+</div> 
+<div class="flow-node"><b>3 · Mark</b><span>Dense, medium and sparse prime paths.</span>
+</div> 
+<div class="flow-node"><b>4 · Barrier / export</b><span>Write finished tile to global sieve.</span> 
+</div> 
+</div> 
+<h3>Initialization and small-prime repair</h3> 
+<p>Threads copy the packed pre-sieve directly to shared memory. For a full tile each thread initializes 24 words. In the first word of the entire run, <code>(value | small_prime_bits) &amp; ~1u</code> restores 7, 11, 13 and 17, which the repeating pattern otherwise removes, and clears 1. The count-array seeds for 2, 3 and 5 remain separate.
+</p> 
+<h3>Find a tile's first strike with locate()</h3> 
+<p>For tile byte offset s, <code>locate</code> advances from the batch anchor by whole p-byte turns. It computes the minimum multiplier residue that can reach the tile, applies the square restriction when still in the first turn, then each phase starts at <code>turn_byte + floor(p*r/30)</code>. If that phase is below the threshold, it advances one more p-byte turn.
+</p> 
+<h3>Three ways to share the prime work</h3> 
+<div class="scroll"> 
+<table> <thead> 
+<tr> <th>Prime range</th> <th>Assignment</th> <th>Strike pattern</th> 
+</tr> </thead> <tbody> 
+<tr> <td>p ≤ 1,024</td> <td>One warp cooperates on a prime.</td> <td>Eight phases × four lanes per phase; each lane advances 4p bytes.</td> 
+</tr> 
+<tr> <td>1,024 &lt; p ≤ 98,304</td> <td>One thread per prime.</td> <td>Eight phase loops, each with byte stride p.</td> 
+</tr> 
+<tr> <td>98,304 &lt; p ≤ tiled cutoff</td> <td>One thread per prime.</td> <td>Walk the next eligible phase in product order and stop at the tile end.</td> 
+</tr> </tbody> 
+</table> 
+</div> 
+<div class="scroll"> 
+<div class="lane-grid" role="img" aria-label="A dense-prime warp arranged into eight phases and four interleaved offsets"> 
+<div class="lane">lane 0<small>r = 1 · +0p</small>
+</div> 
+<div class="lane">lane 1<small>r = 7 · +0p</small>
+</div> 
+<div class="lane">lane 2<small>r = 11 · +0p</small>
+</div> 
+<div class="lane">lane 3<small>r = 13 · +0p</small>
+</div> 
+<div class="lane">lane 4<small>r = 17 · +0p</small>
+</div> 
+<div class="lane">lane 5<small>r = 19 · +0p</small>
+</div> 
+<div class="lane">lane 6<small>r = 23 · +0p</small>
+</div> 
+<div class="lane">lane 7<small>r = 29 · +0p</small>
+</div> 
+<div class="lane">lane 8<small>r = 1 · +1p</small>
+</div> 
+<div class="lane">lane 9<small>r = 7 · +1p</small>
+</div> 
+<div class="lane">lane 10<small>r = 11 · +1p</small>
+</div> 
+<div class="lane">lane 11<small>r = 13 · +1p</small>
+</div> 
+<div class="lane">lane 12<small>r = 17 · +1p</small>
+</div> 
+<div class="lane">lane 13<small>r = 19 · +1p</small>
+</div> 
+<div class="lane">lane 14<small>r = 23 · +1p</small>
+</div> 
+<div class="lane">lane 15<small>r = 29 · +1p</small>
+</div> 
+<div class="lane">lane 16<small>r = 1 · +2p</small>
+</div> 
+<div class="lane">lane 17<small>r = 7 · +2p</small>
+</div> 
+<div class="lane">lane 18<small>r = 11 · +2p</small>
+</div> 
+<div class="lane">lane 19<small>r = 13 · +2p</small>
+</div> 
+<div class="lane">lane 20<small>r = 17 · +2p</small>
+</div> 
+<div class="lane">lane 21<small>r = 19 · +2p</small>
+</div> 
+<div class="lane">lane 22<small>r = 23 · +2p</small>
+</div> 
+<div class="lane">lane 23<small>r = 29 · +2p</small>
+</div> 
+<div class="lane">lane 24<small>r = 1 · +3p</small>
+</div> 
+<div class="lane">lane 25<small>r = 7 · +3p</small>
+</div> 
+<div class="lane">lane 26<small>r = 11 · +3p</small>
+</div> 
+<div class="lane">lane 27<small>r = 13 · +3p</small>
+</div> 
+<div class="lane">lane 28<small>r = 17 · +3p</small>
+</div> 
+<div class="lane">lane 29<small>r = 19 · +3p</small>
+</div> 
+<div class="lane">lane 30<small>r = 23 · +3p</small>
+</div> 
+<div class="lane">lane 31<small>r = 29 · +3p</small>
+</div> 
+</div> 
+</div> 
+<p class="caption">Each column is a multiplier phase; each row adds another p-byte offset. The single-thread paths load one record ahead to give metadata loads an opportunity to overlap current work.
+</p> 
+<h3>Clear bits safely</h3> 
+<p>A strike at tile byte offset <code>at</code> clears its bit inside word <code>at &gt;&gt; 2</code>. Different primes can strike the same word, even when they clear different bits. Shared-memory <code>atomicAnd</code> prevents one thread from undoing another's clear.
+</p> 
+<figure><svg viewBox="0 0 1000 190" role="img" aria-labelledby="atomic-title"> <title id="atomic-title">Two atomic bit clears commute and both survive</title> <rect x="10" y="20" width="255" height="150" rx="10" fill="#19283d" /><text x="30" y="57">Initial byte: 11111111</text><text x="30" y="92" class="sub">Thread A clears bit 0</text><text x="30" y="121" class="sub">Thread B clears bit 1</text> <path d="M280 95H350 M650 95H720" stroke="#74e1b5" stroke-width="2" marker-end="url(#arrow)" /><text x="375" y="60">AND 11111110</text><text x="375" y="95">AND 11111101</text><text x="375" y="134" class="sub">Either order is valid</text> <rect x="745" y="20" width="245" height="150" rx="10" fill="#23433c" /><text x="765" y="79">Result: 11111100</text><text x="765" y="115" class="sub">Both bits remain cleared</text> </svg> <figcaption>Bitwise AND is associative, commutative and idempotent: (W &amp; A) &amp; B = (W &amp; B) &amp; A. Repeated strikes do not change correctness.</figcaption> 
+</figure> 
+<p>After a block barrier, threads write their words to disjoint positions in <code>gpu_sieve</code>. No global atomic is needed for this export. These bits have been sieved by the regular-prime prefix; when larger active primes exist, their clears follow in the next stage. The shared tile disappears when its block finishes.
+</p> 
+<h3>Large runs: one thread walks each prime above 2m</h3>
+<p>After the shared-tile exports, <code>mark_batch</code> launches <code>scatter_kernel</code> for consecutive 16 MiB slices. Each thread owns a prime and walks its hits in increasing multiplier order. Global <code>atomicAnd</code> combines clears from different primes. There is no shared tile or subgroup synchronization in this kernel.</p>
+<div class="flow"><div class="flow-node"><b>1 · Restore</b><span>Load the next byte offset and multiplier phase.</span></div><div class="flow-node"><b>2 · Walk hits</b><span>Advance each hit; clear only if it passes the divisibility filter.</span></div><div class="flow-node"><b>3 · Carry</b><span>Subtract the window length and pack one u32.</span></div><div class="flow-node"><b>4 · Next window</b><span>Default-stream ordering makes this state available.</span></div></div>
+<p>Let \(R=(1,7,11,13,17,19,23,29)\), and let s be the current multiplier phase. Its byte offset within one p-byte wheel turn is \(d_s=\lfloor pR_s/30\rfloor\). To advance a hit at byte a:</p>
+<div class="formula">\[s'=(s+1)\bmod8,\qquad a'=a+d_{s'}-d_s+p\,[s=7].\]</div>
+<p>The bracket is 1 on phase wrap and 0 otherwise. The actual bit is selected by the prepared product-residue mapping in <code>wheel</code>; multiplier phase and output bit are different concepts. The phase step visits only represented multiples of p, in order, without reconstructing eight independent phase origins in each window.</p>
+<h3>Skip clears already covered by the pre-sieve</h3>
+<p>The loop still visits every wheel hit. Before issuing its global atomic, it tests whether the target is divisible by 7, 11, 13 or 17. Those bits were already cleared when the shared tile was initialized, so the atomic can be omitted. This uses integer arithmetic rather than another sieve or pattern-table load.</p>
+<p>Let b be the absolute byte index of the window, a the hit's byte offset, and \(P=7\cdot11\cdot13\cdot17=17017\). The kernel receives \(u=b\bmod P\) and computes</p>
+<div class="formula">\[z=30(u+a)+(pR_s\bmod30).\]</div>
+<p>The actual represented integer is \(x=30(b+a)+(pR_s\bmod30)\). Their difference is a multiple of 30P, so z and x have the same divisibility by every pre-sieve prime. The clear is issued only if all four remainders are nonzero. A compile-time bound ensures z fits in u32 for a full window.</p>
+<div class="formula">\[\rho=\frac67\frac{10}{11}\frac{12}{13}\frac{16}{17}\approx0.677.\]</div>
+<p>About 67.7% of the candidate global clears remain; approximately 32.3% are avoided. The loop and phase progression remain unchanged. This lower atomic cost makes a 2m tiled cutoff worthwhile for large runs. Runs through 8m rows retain the original all-prime tiled path.</p>
+<p>When a reaches or passes window length W, the next window starts with offset a − W and the same phase. Both values fit in one u32:</p>
+<div class="scroll"><div class="bitpack" style="grid-template-columns:3fr 29fr" role="img" aria-label="Persistent sparse state: 3 high phase bits and 29 low offset bits"><div>3 bits<small>phase s</small></div><div>29 bits<small>next byte offset a − W</small></div></div></div>
+<div class="formula">\[\text{state}=((a-W)\mathbin{\vert}(s\ll29)),\qquad a=\text{state}\mathbin{\&}(2^{29}-1),\quad s=\text{state}\gg29.\]</div>
+<p>A compile-time bound checks that a batch plus one prime step fits in the offset field. Newly active primes use <code>locate(record, window_offset, …)</code> in every window of their first batch, enforcing the square restriction even if their first hit is in a later window. From the following batch onward, their packed carry is reused. One thread owns all reads and writes for a prime, so the state needs no atomics.</p>
+<p>At 50m this state occupies 10.88 MiB, down from 75.11 MiB in the previous eight-offset layout, despite the lower cutoff including more primes. The sparse path still visits every active large prime once per window. It avoids visiting each one in every 96 KiB tile and builds no bucket queues.</p>
+<div class="scroll"><table><thead><tr><th>Paired late-range sample</th><th>Previous ordered walk, 4m cutoff</th><th>Filtered walk, 2m cutoff</th></tr></thead><tbody><tr><td>10m configuration</td><td>15.44 ms</td><td>13.14 ms</td></tr><tr><td>25m configuration</td><td>18.97 ms</td><td>15.55 ms</td></tr><tr><td>50m configuration</td><td>21.85 ms</td><td>17.72 ms</td></tr><tr><td>100m configuration</td><td>24.07 ms</td><td>19.56 ms</td></tr></tbody></table></div>
+<p class="caption">RTX 5080 Laptop GPU, one warm-up plus sixteen paired batches, alternating order; intersecting row counts verified. These are marking-only samples. Compact 8/12-byte records, separate prime/state arrays and larger cache windows gave no useful gain. The kept mathematical filter needs no extra buffers or includes. An earlier pattern-table guard was slower; checking the divisibility with arithmetic avoids that load. Nsight Compute measured about 81% L2 throughput, 19% DRAM throughput and 22% SM compute throughput in a filtered-kernel sample.</p>
+<details> <summary>Why the original all-prime tile path scales poorly</summary>
+<p>In the original baseline, the general prime loop visits every active record in every tile, including records that produce no strike. Summing the actual batch/tile bounds and prime counts gives about 2.018 × 10¹² visits at 5m rows and 1.732 × 10¹⁵ at 50m: 858× more visits. These are logical record visits, not measured DRAM transactions; caches and prefetching can serve repeated loads.
+</p> 
+<p>With fixed tile size, this component tends toward \(O(N^3/\log N)\) as active-prime lists grow. Sieve positions and word scans grow as \(N^2\). These competing costs explain why a simple 100× extrapolation from 5m to 50m is unsafe.
+</p> </details> 
+<div class="memory-state" aria-label="Memory state after this step"> 
+<div class="memory-cell"> 
+<h3>CPU RAM</h3> 
+<ul> 
+<li>Host has queued marking; no sieve copy on CPU
+</li> 
+<li><small>Earlier CPU arrays remain allocated until <code>run</code> returns.</small>
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU global memory</h3> 
+<ul> 
+<li><code>gpu_pattern</code>, active <code>gpu_prepared_primes</code>: read
+</li>
+<li><code>gpu_sparse_state</code>: read and updated in sparse windows
+</li> 
+<li><code>gpu_sieve</code>: <span class="new">tile writes, then sparse atomic clears</span>
+</li> 
+<li><code>gpu_counts</code>: untouched by marking
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU registers / shared memory</h3> 
+<ul> 
+<li>Shared: <span class="new">96 KiB tile per resident block</span>
+</li> 
+<li>Registers: current prime and strike positions
+</li>
+<li>Sparse kernel: one prime per thread, packed offset and phase
+</li> 
+<li>Two block barriers; atomic AND for clears
+</li> 
+</ul> 
+</div> 
+</div> 
+</section> 
+<section id="count"> 
+<div class="section-id">08
+</div> 
+<h2>Count each row inside the completed GPU batch</h2> 
+<div class="code-note"><code>count_kernel&lt;&lt;&lt;batch.row_count, 256&gt;&gt;&gt;(…)</code><span>GPU: one block per intersecting row</span>
+</div> 
+<p>The count kernel runs only after regular marking and every sparse window complete. Its 256-thread block computes row endpoints a, m and b, then calls <code>count_range</code> for the left interval [a, m − 1] and right interval [m + 1, b]. Each interval is clipped to this batch.
+</p> 
+<p>Four wheel bytes form one 32-bit word covering 120 integers. Thread t reads words <code>first_word + t</code>, <code>first_word + t + 256</code>, … . Interior words contribute <code>__popc(word)</code>; endpoint masks exclude represented values outside the interval.
+</p> 
+<div class="panel"> 
+<h3>Example: count primes in [37, 49]</h3> 
+<p>Byte q = 1 represents 31, 37, 41, 43, 47, 49, 53, 59. Range bits select 37…49; the sieve has already cleared 49 = 7².
+</p> <pre><code>sieved byte: 11011111
+range mask:  00111110
+AND:         00011110 → popcount = 4</code></pre> 
+<p class="caption">Binary strings show bit 7 first. The four survivors are 37, 41, 43 and 47.
+</p> 
+</div> 
+<figure><svg viewBox="0 0 1000 265" role="img" aria-labelledby="reduce-title"> <title id="reduce-title">Reduction from 256 thread partials to one row total</title><text x="20" y="30" font-size="17">256 thread-local sums for each side</text> <g fill="#23344b"> <rect x="20" y="55" width="110" height="55" rx="6" /> <rect x="140" y="55" width="110" height="55" rx="6" /> <rect x="260" y="55" width="110" height="55" rx="6" /> <rect x="380" y="55" width="110" height="55" rx="6" /> <rect x="500" y="55" width="110" height="55" rx="6" /> <rect x="620" y="55" width="110" height="55" rx="6" /> <rect x="740" y="55" width="110" height="55" rx="6" /> <rect x="860" y="55" width="110" height="55" rx="6" /> </g> <g text-anchor="middle" font-size="15"><text x="75" y="88">Warp 0</text><text x="195" y="88">Warp 1</text><text x="315" y="88">Warp 2</text><text x="435" y="88">Warp 3</text><text x="555" y="88">Warp 4</text><text x="675" y="88">Warp 5</text><text x="795" y="88">Warp 6</text><text x="915" y="88">Warp 7</text></g> <path d="M75 115V145H500 M195 115V145 M315 115V145 M435 115V145 M555 115V145 M675 115V145 M795 115V145 M915 115V145H500V175" stroke="#74e1b5" stroke-width="2" fill="none" marker-end="url(#arrow)" /> <rect x="260" y="185" width="480" height="55" rx="8" fill="#23433c" /><text x="500" y="219" text-anchor="middle">First warp reduces 8 totals → thread 0 writes row</text> </svg> <figcaption>Each warp uses <code>__reduce_add_sync</code>. Only lane 0 writes its pair (left, right) to <code>uint2 sums[8]</code>: 64 bytes of shared memory. After a block barrier, the first warp reduces those eight pairs, using zero for its other 24 lanes.</figcaption> 
+</figure> 
+<p>Warp reductions combine each side's thread-local totals. Eight <code>uint2</code> warp totals use just 64 bytes of shared memory. After a barrier, the first warp reduces those pairs. Thread zero tests the centre bit separately and adds all three contributions to <code>gpu_counts[row]</code>.
+</p> 
+<p>One block updates a row in this batch. Later batches add to that row in stream order, so these per-row additions need no atomics. A row's three u32 fields fit the supported row limit; cumulative CSV totals on the CPU use u64.
+</p> 
+<div class="memory-state" aria-label="Memory state after this step"> 
+<div class="memory-cell"> 
+<h3>CPU RAM</h3> 
+<ul> 
+<li>CPU count vector has not received this batch yet
+</li> 
+<li><small>Earlier CPU arrays remain allocated until <code>run</code> returns.</small>
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU global memory</h3> 
+<ul> 
+<li><code>gpu_sieve</code>: read, stays on GPU
+</li> 
+<li><code>gpu_counts</code>: <span class="new">partial or complete row counts added</span>
+</li> 
+<li>Prepared primes / pattern retained for reuse
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU registers / shared memory</h3> 
+<ul> 
+<li>Shared: <span class="new">64 bytes, sums[8]</span>
+</li> 
+<li>Registers: left / right partial sums and centre bit
+</li> 
+<li>Marking tiles no longer exist
+</li> 
+</ul> 
+</div> 
+</div> 
+</section> 
+<section id="readback"> 
+<div class="section-id">09
+</div> 
+<h2>Wait for completion and copy only finished rows</h2> 
+<div class="code-note"><code>cudaEventSynchronize → elapsed times → cudaMemcpy</code><span>CPU waits, then GPU-to-CPU count transfer</span>
+</div> 
+<p>The CPU waits for event 3, after counting. Event pairs measure preparation, marking and counting time. The field <code>GPU</code> uses a surrounding CPU clock and therefore also includes submission, synchronization and event-query overhead.
+</p> <pre><code>num_complete = last_complete_row - rows_written;
+counts.resize(num_complete);
+cudaMemcpy(counts.data(),
+           gpu_counts + rows_written + 1,
+           num_complete * sizeof(RowCounts),
+           cudaMemcpyDeviceToHost);</code></pre> 
+<p>Only newly complete rows are copied: 12 bytes per row. CPU staging begins at index zero for each slice; GPU indexing remains by absolute row number. An incomplete row remains solely in the persistent GPU accumulation until a later batch completes it. The full batch sieve is never copied back.
+</p> 
+<div class="scroll"> 
+<table class="stage-lifetime"> <thead> 
+<tr> <th>Buffer</th> <th>Prepare</th> <th>Mark</th> <th>Count</th> <th>Readback / output</th> 
+</tr> </thead> <tbody> 
+<tr> <td>gpu_base_primes</td> <td class="read">read</td> <td>—</td> <td>—</td> <td>retained</td> 
+</tr> 
+<tr> <td>gpu_prepared_primes</td> <td class="written">write active prefix</td> <td class="read">read</td> <td>—</td> <td>retained</td> 
+</tr> 
+<tr> <td>gpu_pattern</td> <td>—</td> <td class="read">read</td> <td>—</td> <td>retained</td> 
+</tr> 
+<tr> <td>gpu_sieve</td> <td>—</td> <td class="written">overwrite</td> <td class="read">read</td> <td>retained, then overwritten</td> 
+</tr> 
+<tr> <td>gpu_counts</td> <td>—</td> <td>—</td> <td class="written">add row contributions</td> <td class="read">copy complete prefix slice</td> 
+</tr> 
+<tr><td>gpu_sparse_state</td><td>unchanged</td><td class="written">advance each sparse window</td><td>unchanged</td><td>retain for next batch</td>
+</tr>
+<tr><td>CPU counts</td> <td>unchanged</td> <td>unchanged</td> <td>unchanged</td> <td class="written">receive slice; read for CSV</td> 
+</tr> </tbody> 
+</table> 
+</div> 
+<p>At 50m rows, late batches cover roughly 80 rows each; a full run has about 310,441 batches. Thus late readbacks can be only around 1 KiB each, even though a batch represents about 8.05 billion integers. Transfer latency and synchronization deserve measurement, but do not remove the much larger prime/tile scanning cost.
+</p> 
+<div class="memory-state" aria-label="Memory state after this step"> 
+<div class="memory-cell"> 
+<h3>CPU RAM</h3> 
+<ul> 
+<li><code>counts[0..num_complete)</code>: <span class="new">reused completed-row slice</span>
+</li> 
+<li>Timing totals updated
+</li> 
+<li>Earlier CPU arrays retained
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU global memory</h3> 
+<ul> 
+<li><code>gpu_counts</code>: read for selected rows, still retains all partials
+</li> 
+<li>All buffers retained
+</li> 
+<li><small>GPU buffers are reused across batches; they are not reallocated in the loop.</small> 
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU registers / shared memory</h3> 
+<ul> 
+<li>Count kernel completed; no live block storage
+</li> 
+<li>Event synchronization establishes completion
+</li> 
+</ul> 
+</div> 
+</div> 
+</section> 
+<section id="output"> 
+<div class="section-id">10
+</div> 
+<h2>Accumulate totals, write CSV and advance the loop</h2> 
+<div class="code-note"><code>Race::emit → write_csv_row → progress check</code><span>CPU only, after each completed batch</span>
+</div> 
+<p><code>rows_written</code> advances through the newly completed rows. <code>Race::emit</code> adds each <code>RowCounts</code> to the u64 cumulative left, centre and right totals, updates leader statistics, and writes one CSV record.
+</p> 
+<div class="formula">\[L_n=\sum_{j=1}^n\ell_j,\quad C_n=\sum_{j=1}^nc_j,\quad R_n=\sum_{j=1}^nr_j,\qquad L_n+C_n+R_n=\pi(n^2).\]
+</div> 
+<p>The first non-tied leader counts as a switch. A tie increments the tie count and preserves <code>previous_leader</code>. The difference is R − L in both progress and final diagnostics.
+</p> 
+<div class="flow"> 
+<div class="flow-node"><b>RowCounts</b><span>Three per-row u32 values in CPU RAM.</span>
+</div> 
+<div class="flow-node"><b>Race</b><span>Three cumulative u64 totals and lead state.</span>
+</div> 
+<div class="flow-node"><b>to_chars</b><span>One CSV line in an 84-byte stack buffer.</span>
+</div> 
+<div class="flow-node"><b>fwrite</b><span>Checked write into buffered stdout.</span>
+</div> 
+</div> 
+<p>The CSV writer uses <code>std::to_chars</code> for four integers, adds commas and a newline, and passes the resulting byte span to <code>write_output</code>. Four maximum-width u64 values plus delimiters fit exactly in 84 bytes. No per-row formatted string is allocated.
+</p> 
+<p>Stdout uses a 64 KiB buffer configured in <code>main</code>. Binary mode preserves literal LF bytes on Windows. Progress and summaries go to stderr. Around every five seconds the program flushes CSV and reports progress, then starts the next batch.
+</p> 
+<p>At the next iteration, prepared records and sieve bytes are overwritten for the new range. GPU row counts, packed sparse carry and cumulative race state persist; CPU count staging is reused. The stop flag is checked before starting another batch.
+</p> 
+<div class="memory-state" aria-label="Memory state after this step"> 
+<div class="memory-cell"> 
+<h3>CPU RAM</h3> 
+<ul> 
+<li><code>Race</code>, <code>rows_written</code>: <span class="new">updated</span>
+</li> 
+<li>CSV line: temporary 84-byte stack buffer
+</li> 
+<li>Stdout: 64 KiB buffered bytes pending OS write
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU global memory</h3> 
+<ul> 
+<li>No GPU kernel executing during host CSV emission
+</li> 
+<li>All GPU buffers retained for next batch
+</li> 
+<li>Partial row remains in <code>gpu_counts</code>
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU registers / shared memory</h3> 
+<ul> 
+<li>No live CUDA block-local data
+</li> 
+<li>No explicit CPU/GPU overlap across batches
+</li> 
+</ul> 
+</div> 
+</div> 
+</section> 
+<section id="finish"> 
+<div class="section-id">11
+</div> 
+<h2>Flush, report and exit</h2> 
+<div class="code-note"><code>flush_output → final diagnostics → return</code><span>After the loop</span> 
+</div> 
+<p>When all batches finish—or Ctrl+C requests a stop—the program flushes stdout, reports the final timings and counts, then returns. An interrupt sets a lock-free atomic flag; it does not interrupt a running kernel or emit an incomplete row. The signal handler re-registers itself to accept repeated Ctrl+C requests.
+</p> 
+<p>CPU vectors and arrays are destroyed when <code>run</code> returns. The current one-shot program relies on process exit to reclaim GPU allocations and events. Calling <code>run</code> repeatedly inside a long-lived process would require explicit cleanup or resource-owning wrappers.
+</p> 
+<p>CUDA, parsing and output failures throw exceptions. The catch in <code>main</code> writes <code># Error: …</code> and returns 1. Normal completion and a graceful Ctrl+C stop return 0.
+</p> 
+<p class="caption">This walkthrough follows the current <code>tri.cu</code>. Static memory estimates and the 50m work counts were calculated from its bounds; no full 50-million-row run was performed. The only external dependency of this document is KaTeX and its fonts from the CDN.
+</p> 
+<div class="memory-state" aria-label="Memory state after this step"> 
+<div class="memory-cell"> 
+<h3>CPU RAM</h3> 
+<ul> 
+<li>Final CSV flush and diagnostic writes complete
+</li> 
+<li>CPU arrays destroyed on return
+</li> 
+<li>Process exits
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU global memory</h3> 
+<ul> 
+<li>Buffers and events survive until process teardown
+</li> 
+<li>CUDA context releases them on process exit
+</li> 
+</ul> 
+</div> 
+<div class="memory-cell"> 
+<h3>GPU registers / shared memory</h3> 
+<ul> 
+<li>No active kernel or shared tile
+</li> 
+<li>No remaining per-thread registers
+</li> 
+</ul> 
+</div> 
+</div> 
+</section> 
+<section id="scaling">
+<div class="section-id">12</div><h2>Scaling with the row count</h2>
+<p>N rows cover \(X=N^2\) integers. Let B = 256 MiB be the batch size, t = 96 KiB the shared-tile size, and W = 16 MiB the sparse-window size, all measured in wheel bytes. A wheel byte covers 30 consecutive integers.</p>
+<div class="formula">\[\text{batches}\simeq\frac{N^2}{30B},\qquad \text{tiles}\simeq\frac{N^2}{30t},\qquad \text{windows}\simeq\frac{N^2}{30W}.\]</div>
+<p>There are 310,441 batches at 50m rows. A constant cost per batch would produce quadratic scaling. Actual batch cost grows as more primes become active.</p>
+<figure><svg role="img" aria-label="Measured batch times, fitted rate, sustained-run correction and predicted total runtime" xmlns:xlink="http://www.w3.org/1999/xlink" width="864pt" height="338.4pt" viewBox="0 0 864 338.4" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-10-25T13:00:07.982908</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.9, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 338.4 
+L 864 338.4 
+L 864 0 
+L 0 0 
+z
+" style="fill: #0b1220"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 36.403365 305.04351 
+L 416.662812 305.04351 
+L 416.662812 18.118365 
+L 36.403365 18.118365 
+z
+" style="fill: #0b1220"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 79.050262 305.04351 
+L 79.050262 18.118365 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_2">
+      <defs>
+       <path id="ma1e05a4b57" d="M 0 0 
+L 0 3.5 
+" style="stroke: #b0bfd1; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="79.050262" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="79.050262" y="319.641948" transform="rotate(-0 79.050262 319.641948)">10</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 189.334984 305.04351 
+L 189.334984 18.118365 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_4">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="189.334984" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="189.334984" y="319.641948" transform="rotate(-0 189.334984 319.641948)">25</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 272.762155 305.04351 
+L 272.762155 18.118365 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_6">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="272.762155" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="272.762155" y="319.641948" transform="rotate(-0 272.762155 319.641948)">50</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 356.189327 305.04351 
+L 356.189327 18.118365 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_8">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="356.189327" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="356.189327" y="319.641948" transform="rotate(-0 356.189327 319.641948)">100</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_9">
+      <path d="M 399.378292 305.04351 
+L 399.378292 18.118365 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_10">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="399.378292" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_5">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="399.378292" y="319.641948" transform="rotate(-0 399.378292 319.641948)">143</text>
+     </g>
+    </g>
+    <g id="xtick_6">
+     <g id="line2d_11">
+      <defs>
+       <path id="mca3065e2bd" d="M 0 0 
+L 0 2 
+" style="stroke: #b0bfd1; stroke-width: 0.6"/>
+      </defs>
+      <g>
+       <use xlink:href="#mca3065e2bd" x="52.192711" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_7">
+     <g id="line2d_12">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="66.369074" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_8">
+     <g id="line2d_13">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="162.477433" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_9">
+     <g id="line2d_14">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="211.2792" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_10">
+     <g id="line2d_15">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="245.904605" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_11">
+     <g id="line2d_16">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="294.706372" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_12">
+     <g id="line2d_17">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="313.259942" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_13">
+     <g id="line2d_18">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="329.331776" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_14">
+     <g id="line2d_19">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="343.508139" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="text_6">
+     <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #edf3fc" x="226.533089" y="333.320073" transform="rotate(-0 226.533089 333.320073)">Row count N (millions)</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_20">
+      <path d="M 36.403365 287.110688 
+L 416.662812 287.110688 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_21">
+      <defs>
+       <path id="m8b462ddd11" d="M 0 0 
+L -3.5 0 
+" style="stroke: #b0bfd1; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m8b462ddd11" x="36.403365" y="287.110688" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_7">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="29.403365" y="290.909907" transform="rotate(-0 29.403365 290.909907)">10</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_22">
+      <path d="M 36.403365 242.278635 
+L 416.662812 242.278635 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_23">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="36.403365" y="242.278635" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_8">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="29.403365" y="246.077853" transform="rotate(-0 29.403365 246.077853)">15</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_24">
+      <path d="M 36.403365 197.446581 
+L 416.662812 197.446581 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_25">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="36.403365" y="197.446581" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_9">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="29.403365" y="201.245799" transform="rotate(-0 29.403365 201.245799)">20</text>
+     </g>
+    </g>
+    <g id="ytick_4">
+     <g id="line2d_26">
+      <path d="M 36.403365 152.614527 
+L 416.662812 152.614527 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_27">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="36.403365" y="152.614527" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_10">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="29.403365" y="156.413745" transform="rotate(-0 29.403365 156.413745)">25</text>
+     </g>
+    </g>
+    <g id="ytick_5">
+     <g id="line2d_28">
+      <path d="M 36.403365 107.782473 
+L 416.662812 107.782473 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_29">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="36.403365" y="107.782473" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_11">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="29.403365" y="111.581692" transform="rotate(-0 29.403365 111.581692)">30</text>
+     </g>
+    </g>
+    <g id="ytick_6">
+     <g id="line2d_30">
+      <path d="M 36.403365 62.950419 
+L 416.662812 62.950419 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_31">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="36.403365" y="62.950419" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_12">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="29.403365" y="66.749638" transform="rotate(-0 29.403365 66.749638)">35</text>
+     </g>
+    </g>
+    <g id="ytick_7">
+     <g id="line2d_32">
+      <path d="M 36.403365 18.118365 
+L 416.662812 18.118365 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_33">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="36.403365" y="18.118365" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_13">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="29.403365" y="21.917584" transform="rotate(-0 29.403365 21.917584)">40</text>
+     </g>
+    </g>
+    <g id="text_14">
+     <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #edf3fc" x="10.598678" y="161.580938" transform="rotate(-90 10.598678 161.580938)">Prepare + mark + count (ms / 256 MiB batch)</text>
+    </g>
+   </g>
+   <g id="line2d_34">
+    <path d="M 53.687885 248.59475 
+L 79.050262 243.202464 
+L 100.994478 238.362633 
+L 127.852029 232.178769 
+L 162.477433 223.631598 
+L 189.334984 216.429035 
+L 229.832771 204.290289 
+L 272.762155 189.119485 
+L 321.563922 167.73276 
+L 356.189327 148.798021 
+L 399.378292 119.031095 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke: #74e1b5; stroke-width: 1.5; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_35">
+    <path d="M 53.687885 220.512093 
+L 79.050262 213.938424 
+L 100.994478 208.038246 
+L 127.852029 200.499575 
+L 162.477433 190.079825 
+L 189.334984 181.299269 
+L 229.832771 166.501075 
+L 272.762155 148.006535 
+L 321.563922 121.934244 
+L 356.189327 98.85114 
+L 399.378292 62.56265 
+" clip-path="url(#p11d8c742b5)" style="fill: none; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #ffd276; stroke-width: 1.5"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 36.403365 305.04351 
+L 36.403365 18.118365 
+" style="fill: none; stroke: #8092a8; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 416.662812 305.04351 
+L 416.662812 18.118365 
+" style="fill: none; stroke: #8092a8; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 36.403365 305.04351 
+L 416.662812 305.04351 
+" style="fill: none; stroke: #8092a8; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 36.403365 18.118365 
+L 416.662812 18.118365 
+" style="fill: none; stroke: #8092a8; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_15">
+    <text style="font-weight: 700; font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #edf3fc" x="36.403365" y="12.118365" transform="rotate(-0 36.403365 12.118365)">Measured batch cost</text>
+   </g>
+   <g id="PathCollection_1">
+    <defs>
+     <path id="mc6291a536e" d="M 0 2.5 
+C 0.663008 2.5 1.29895 2.236584 1.767767 1.767767 
+C 2.236584 1.29895 2.5 0.663008 2.5 0 
+C 2.5 -0.663008 2.236584 -1.29895 1.767767 -1.767767 
+C 1.29895 -2.236584 0.663008 -2.5 0 -2.5 
+C -0.663008 -2.5 -1.29895 -2.236584 -1.767767 -1.767767 
+C -2.236584 -1.29895 -2.5 -0.663008 -2.5 0 
+C -2.5 0.663008 -2.236584 1.29895 -1.767767 1.767767 
+C -1.29895 2.236584 -0.663008 2.5 0 2.5 
+z
+" style="stroke: #63c4ff"/>
+    </defs>
+    <g clip-path="url(#p11d8c742b5)">
+     <use xlink:href="#mc6291a536e" x="53.687885" y="243.681259" style="fill: #63c4ff; stroke: #63c4ff"/>
+     <use xlink:href="#mc6291a536e" x="79.050262" y="243.830021" style="fill: #63c4ff; stroke: #63c4ff"/>
+     <use xlink:href="#mc6291a536e" x="100.994478" y="241.367531" style="fill: #63c4ff; stroke: #63c4ff"/>
+     <use xlink:href="#mc6291a536e" x="127.852029" y="234.425977" style="fill: #63c4ff; stroke: #63c4ff"/>
+     <use xlink:href="#mc6291a536e" x="162.477433" y="216.311577" style="fill: #63c4ff; stroke: #63c4ff"/>
+     <use xlink:href="#mc6291a536e" x="189.334984" y="221.045654" style="fill: #63c4ff; stroke: #63c4ff"/>
+     <use xlink:href="#mc6291a536e" x="229.832771" y="213.648051" style="fill: #63c4ff; stroke: #63c4ff"/>
+     <use xlink:href="#mc6291a536e" x="272.762155" y="191.057152" style="fill: #63c4ff; stroke: #63c4ff"/>
+     <use xlink:href="#mc6291a536e" x="321.563922" y="156.442494" style="fill: #63c4ff; stroke: #63c4ff"/>
+     <use xlink:href="#mc6291a536e" x="356.189327" y="144.702198" style="fill: #63c4ff; stroke: #63c4ff"/>
+     <use xlink:href="#mc6291a536e" x="399.378292" y="124.858984" style="fill: #63c4ff; stroke: #63c4ff"/>
+    </g>
+   </g>
+   <g id="PathCollection_2">
+    <defs>
+     <path id="m48d8d30c62" d="M -2.5 2.5 
+L 2.5 -2.5 
+M -2.5 -2.5 
+L 2.5 2.5 
+" style="stroke: #ff9f9f; stroke-width: 1.5"/>
+    </defs>
+    <g clip-path="url(#p11d8c742b5)">
+     <use xlink:href="#m48d8d30c62" x="55.315031" y="223.733771" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="57.382059" y="222.749055" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="59.360283" y="220.034438" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="61.249485" y="218.441873" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="63.068544" y="218.04081" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="64.831164" y="217.882393" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="66.54064" y="217.446128" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="68.197087" y="217.134394" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="69.803504" y="216.404135" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="71.365404" y="216.404135" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="72.885109" y="215.95788" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="74.362142" y="214.96011" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="75.798672" y="214.408311" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     <use xlink:href="#m48d8d30c62" x="77.196711" y="214.144896" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+    </g>
+   </g>
+   <g id="legend_1">
+    <g id="PathCollection_3">
+     <g>
+      <use xlink:href="#mc6291a536e" x="51.983365" y="29.576584" style="fill: #63c4ff; stroke: #63c4ff"/>
+     </g>
+    </g>
+    <g id="text_16">
+     <text style="font-size: 8.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #edf3fc" x="66.743365" y="31.729084" transform="rotate(-0 66.743365 31.729084)">Short steady samples</text>
+    </g>
+    <g id="line2d_36">
+     <path d="M 43.783365 40.895146 
+L 51.983365 40.895146 
+L 60.183365 40.895146 
+" style="fill: none; stroke: #74e1b5; stroke-width: 1.5; stroke-linecap: square"/>
+    </g>
+    <g id="text_17">
+     <text style="font-size: 8.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #edf3fc" x="66.743365" y="43.765146" transform="rotate(-0 66.743365 43.765146)">Prime-sum rate fit</text>
+    </g>
+    <g id="line2d_37">
+     <path d="M 43.783365 52.931209 
+L 51.983365 52.931209 
+L 60.183365 52.931209 
+" style="fill: none; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #ffd276; stroke-width: 1.5"/>
+    </g>
+    <g id="text_18">
+     <text style="font-size: 8.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #edf3fc" x="66.743365" y="55.801209" transform="rotate(-0 66.743365 55.801209)">Sustained correction ×1.219</text>
+    </g>
+    <g id="PathCollection_4">
+     <g>
+      <use xlink:href="#m48d8d30c62" x="51.983365" y="65.684771" style="fill: #ff9f9f; stroke: #ff9f9f; stroke-width: 1.5"/>
+     </g>
+    </g>
+    <g id="text_19">
+     <text style="font-size: 8.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #edf3fc" x="66.743365" y="67.837271" transform="rotate(-0 66.743365 67.837271)">Late intervals of full 10m run</text>
+    </g>
+   </g>
+  </g>
+  <g id="axes_2">
+   <g id="patch_7">
+    <path d="M 480.740312 305.04351 
+L 860.99976 305.04351 
+L 860.99976 18.118365 
+L 480.740312 18.118365 
+z
+" style="fill: #0b1220"/>
+   </g>
+   <g id="FillBetweenPolyCollection_1">
+    <defs>
+     <path id="m36b8a8b27e" d="M 658.375615 -171.683294 
+L 658.375615 -160.154959 
+L 659.151095 -160.743864 
+L 659.926574 -161.33277 
+L 660.702054 -161.921675 
+L 661.477534 -162.51058 
+L 662.253013 -163.099486 
+L 663.028493 -163.688391 
+L 663.803972 -164.277296 
+L 664.579452 -164.866202 
+L 665.354932 -165.455107 
+L 666.130411 -166.044013 
+L 666.905891 -166.632918 
+L 667.68137 -167.221823 
+L 668.45685 -167.810729 
+L 669.23233 -168.399634 
+L 670.007809 -168.988539 
+L 670.783289 -169.577445 
+L 671.558768 -170.157671 
+L 672.334248 -170.73274 
+L 673.109728 -171.307808 
+L 673.885207 -171.882876 
+L 674.660687 -172.457944 
+L 675.436166 -173.033013 
+L 676.211646 -173.608081 
+L 676.987126 -174.183149 
+L 677.762605 -174.758217 
+L 678.538085 -175.333286 
+L 679.313564 -175.908354 
+L 680.089044 -176.483422 
+L 680.864524 -177.05849 
+L 681.640003 -177.633559 
+L 682.415483 -178.208627 
+L 683.190962 -178.783695 
+L 683.966442 -179.358763 
+L 684.741922 -179.933831 
+L 685.517401 -180.5089 
+L 686.292881 -181.083968 
+L 687.06836 -181.653204 
+L 687.84384 -182.218361 
+L 688.61932 -182.783518 
+L 689.394799 -183.348676 
+L 690.170279 -183.913833 
+L 690.945758 -184.47899 
+L 691.721238 -185.044147 
+L 692.496718 -185.609305 
+L 693.272197 -186.174462 
+L 694.047677 -186.739619 
+L 694.823156 -187.304777 
+L 695.598636 -187.869934 
+L 696.374116 -188.435091 
+L 697.149595 -189.000249 
+L 697.925075 -189.565406 
+L 698.700554 -190.130563 
+L 699.476034 -190.695721 
+L 700.251514 -191.260878 
+L 701.026993 -191.826035 
+L 701.802473 -192.391193 
+L 702.577952 -192.95635 
+L 703.353432 -193.521507 
+L 704.128912 -194.086664 
+L 704.904391 -194.651822 
+L 705.679871 -195.216979 
+L 706.45535 -195.782136 
+L 707.23083 -196.34345 
+L 708.00631 -196.903511 
+L 708.781789 -197.463572 
+L 709.557269 -198.023633 
+L 710.332748 -198.583694 
+L 711.108228 -199.143755 
+L 711.883708 -199.703816 
+L 712.659187 -200.263877 
+L 713.434667 -200.823938 
+L 714.210146 -201.383999 
+L 714.985626 -201.94406 
+L 715.761106 -202.504121 
+L 716.536585 -203.064182 
+L 717.312065 -203.624242 
+L 718.087544 -204.184303 
+L 718.863024 -204.744364 
+L 719.638504 -205.304425 
+L 720.413983 -205.864486 
+L 721.189463 -206.424547 
+L 721.964942 -206.984608 
+L 722.740422 -207.543314 
+L 723.515902 -208.10148 
+L 724.291381 -208.659646 
+L 725.066861 -209.217813 
+L 725.84234 -209.775979 
+L 726.61782 -210.334145 
+L 727.3933 -210.892312 
+L 728.168779 -211.450478 
+L 728.944259 -212.008645 
+L 729.719738 -212.566811 
+L 730.495218 -213.124977 
+L 731.270698 -213.683144 
+L 732.046177 -214.24131 
+L 732.821657 -214.799476 
+L 733.597136 -215.357643 
+L 734.372616 -215.915809 
+L 735.148096 -216.473975 
+L 735.923575 -217.032142 
+L 736.699055 -217.590308 
+L 737.474534 -218.148475 
+L 738.250014 -218.706641 
+L 739.025494 -219.264807 
+L 739.800973 -219.822974 
+L 740.576453 -220.38114 
+L 741.351932 -220.939306 
+L 742.127412 -221.497473 
+L 742.902892 -222.055639 
+L 743.678371 -222.613806 
+L 744.453851 -223.171972 
+L 745.22933 -223.730138 
+L 746.00481 -224.28873 
+L 746.78029 -224.847746 
+L 747.555769 -225.406763 
+L 748.331249 -225.96578 
+L 749.106728 -226.524797 
+L 749.882208 -227.083813 
+L 750.657688 -227.64283 
+L 751.433167 -228.201847 
+L 752.208647 -228.760864 
+L 752.984126 -229.31988 
+L 753.759606 -229.878897 
+L 754.535086 -230.437914 
+L 755.310565 -230.996931 
+L 756.086045 -231.555947 
+L 756.861524 -232.114964 
+L 757.637004 -232.673981 
+L 758.412484 -233.232998 
+L 759.187963 -233.792015 
+L 759.963443 -234.351031 
+L 760.738922 -234.910048 
+L 761.514402 -235.469065 
+L 762.289882 -236.028082 
+L 763.065361 -236.587098 
+L 763.840841 -237.146115 
+L 764.61632 -237.705132 
+L 765.3918 -238.264149 
+L 766.16728 -238.823165 
+L 766.942759 -239.382182 
+L 767.718239 -239.941199 
+L 768.493718 -240.500216 
+L 769.269198 -241.059232 
+L 770.044678 -241.618249 
+L 770.820157 -242.179181 
+L 771.595637 -242.742275 
+L 772.371116 -243.305369 
+L 773.146596 -243.868463 
+L 773.922076 -244.431557 
+L 774.697555 -244.994651 
+L 775.473035 -245.557745 
+L 776.248514 -246.120839 
+L 777.023994 -246.683933 
+L 777.799474 -247.247027 
+L 778.574953 -247.810121 
+L 779.350433 -248.373215 
+L 780.125912 -248.936309 
+L 780.901392 -249.499403 
+L 781.676872 -250.062497 
+L 782.452351 -250.625591 
+L 783.227831 -251.188685 
+L 784.00331 -251.751779 
+L 784.77879 -252.314873 
+L 785.55427 -252.877967 
+L 786.329749 -253.441061 
+L 787.105229 -254.004155 
+L 787.880708 -254.567249 
+L 788.656188 -255.130343 
+L 789.431668 -255.693437 
+L 790.207147 -256.256532 
+L 790.982627 -256.819626 
+L 791.758106 -257.38272 
+L 792.533586 -257.945814 
+L 793.309066 -258.508908 
+L 794.084545 -259.072002 
+L 794.860025 -259.635096 
+L 795.635504 -260.19819 
+L 796.410984 -260.761284 
+L 797.186464 -261.324378 
+L 797.961943 -261.887472 
+L 798.737423 -262.450918 
+L 799.512902 -263.020068 
+L 800.288382 -263.589218 
+L 801.063862 -264.158369 
+L 801.839341 -264.727519 
+L 802.614821 -265.296669 
+L 803.3903 -265.865819 
+L 804.16578 -266.43497 
+L 804.94126 -267.00412 
+L 805.716739 -267.57327 
+L 806.492219 -268.142421 
+L 807.267698 -268.711571 
+L 808.043178 -269.280721 
+L 808.818658 -269.849871 
+L 809.594137 -270.419022 
+L 810.369617 -270.988172 
+L 811.145096 -271.557322 
+L 811.920576 -272.126473 
+L 812.696056 -272.695623 
+L 813.471535 -273.264773 
+L 814.247015 -273.833923 
+L 815.022494 -274.403074 
+L 815.797974 -274.972224 
+L 816.573454 -275.541374 
+L 817.348933 -276.110525 
+L 818.124413 -276.679675 
+L 818.899892 -277.250558 
+L 819.675372 -277.827455 
+L 820.450852 -278.404351 
+L 821.226331 -278.981248 
+L 822.001811 -279.558144 
+L 822.77729 -280.135041 
+L 823.55277 -280.711938 
+L 824.32825 -281.288834 
+L 825.103729 -281.865731 
+L 825.879209 -282.442627 
+L 826.654688 -283.019524 
+L 827.430168 -283.59642 
+L 828.205648 -284.173317 
+L 828.981127 -284.750213 
+L 829.756607 -285.32711 
+L 830.532086 -285.904007 
+L 831.307566 -286.480903 
+L 832.083046 -287.0578 
+L 832.858525 -287.634696 
+L 833.634005 -288.211593 
+L 834.409484 -288.788489 
+L 835.184964 -289.365386 
+L 835.960444 -289.942282 
+L 836.735923 -290.519179 
+L 837.511403 -291.096076 
+L 838.286882 -291.672972 
+L 839.062362 -292.249869 
+L 839.837842 -292.826765 
+L 840.613321 -293.403662 
+L 841.388801 -293.980558 
+L 842.16428 -294.557455 
+L 842.93976 -295.134351 
+L 843.71524 -295.711248 
+L 843.71524 -307.239583 
+L 843.71524 -307.239583 
+L 842.93976 -306.662686 
+L 842.16428 -306.08579 
+L 841.388801 -305.508893 
+L 840.613321 -304.931997 
+L 839.837842 -304.3551 
+L 839.062362 -303.778204 
+L 838.286882 -303.201307 
+L 837.511403 -302.624411 
+L 836.735923 -302.047514 
+L 835.960444 -301.470617 
+L 835.184964 -300.893721 
+L 834.409484 -300.316824 
+L 833.634005 -299.739928 
+L 832.858525 -299.163031 
+L 832.083046 -298.586135 
+L 831.307566 -298.009238 
+L 830.532086 -297.432342 
+L 829.756607 -296.855445 
+L 828.981127 -296.278548 
+L 828.205648 -295.701652 
+L 827.430168 -295.124755 
+L 826.654688 -294.547859 
+L 825.879209 -293.970962 
+L 825.103729 -293.394066 
+L 824.32825 -292.817169 
+L 823.55277 -292.240273 
+L 822.77729 -291.663376 
+L 822.001811 -291.086479 
+L 821.226331 -290.509583 
+L 820.450852 -289.932686 
+L 819.675372 -289.35579 
+L 818.899892 -288.778893 
+L 818.124413 -288.20801 
+L 817.348933 -287.63886 
+L 816.573454 -287.069709 
+L 815.797974 -286.500559 
+L 815.022494 -285.931409 
+L 814.247015 -285.362258 
+L 813.471535 -284.793108 
+L 812.696056 -284.223958 
+L 811.920576 -283.654808 
+L 811.145096 -283.085657 
+L 810.369617 -282.516507 
+L 809.594137 -281.947357 
+L 808.818658 -281.378206 
+L 808.043178 -280.809056 
+L 807.267698 -280.239906 
+L 806.492219 -279.670756 
+L 805.716739 -279.101605 
+L 804.94126 -278.532455 
+L 804.16578 -277.963305 
+L 803.3903 -277.394154 
+L 802.614821 -276.825004 
+L 801.839341 -276.255854 
+L 801.063862 -275.686704 
+L 800.288382 -275.117553 
+L 799.512902 -274.548403 
+L 798.737423 -273.979253 
+L 797.961943 -273.415807 
+L 797.186464 -272.852713 
+L 796.410984 -272.289619 
+L 795.635504 -271.726525 
+L 794.860025 -271.163431 
+L 794.084545 -270.600337 
+L 793.309066 -270.037243 
+L 792.533586 -269.474149 
+L 791.758106 -268.911055 
+L 790.982627 -268.347961 
+L 790.207147 -267.784867 
+L 789.431668 -267.221772 
+L 788.656188 -266.658678 
+L 787.880708 -266.095584 
+L 787.105229 -265.53249 
+L 786.329749 -264.969396 
+L 785.55427 -264.406302 
+L 784.77879 -263.843208 
+L 784.00331 -263.280114 
+L 783.227831 -262.71702 
+L 782.452351 -262.153926 
+L 781.676872 -261.590832 
+L 780.901392 -261.027738 
+L 780.125912 -260.464644 
+L 779.350433 -259.90155 
+L 778.574953 -259.338456 
+L 777.799474 -258.775362 
+L 777.023994 -258.212268 
+L 776.248514 -257.649174 
+L 775.473035 -257.08608 
+L 774.697555 -256.522986 
+L 773.922076 -255.959892 
+L 773.146596 -255.396798 
+L 772.371116 -254.833704 
+L 771.595637 -254.27061 
+L 770.820157 -253.707516 
+L 770.044678 -253.146584 
+L 769.269198 -252.587567 
+L 768.493718 -252.028551 
+L 767.718239 -251.469534 
+L 766.942759 -250.910517 
+L 766.16728 -250.3515 
+L 765.3918 -249.792484 
+L 764.61632 -249.233467 
+L 763.840841 -248.67445 
+L 763.065361 -248.115433 
+L 762.289882 -247.556417 
+L 761.514402 -246.9974 
+L 760.738922 -246.438383 
+L 759.963443 -245.879366 
+L 759.187963 -245.32035 
+L 758.412484 -244.761333 
+L 757.637004 -244.202316 
+L 756.861524 -243.643299 
+L 756.086045 -243.084282 
+L 755.310565 -242.525266 
+L 754.535086 -241.966249 
+L 753.759606 -241.407232 
+L 752.984126 -240.848215 
+L 752.208647 -240.289199 
+L 751.433167 -239.730182 
+L 750.657688 -239.171165 
+L 749.882208 -238.612148 
+L 749.106728 -238.053132 
+L 748.331249 -237.494115 
+L 747.555769 -236.935098 
+L 746.78029 -236.376081 
+L 746.00481 -235.817065 
+L 745.22933 -235.258473 
+L 744.453851 -234.700307 
+L 743.678371 -234.142141 
+L 742.902892 -233.583974 
+L 742.127412 -233.025808 
+L 741.351932 -232.467641 
+L 740.576453 -231.909475 
+L 739.800973 -231.351309 
+L 739.025494 -230.793142 
+L 738.250014 -230.234976 
+L 737.474534 -229.67681 
+L 736.699055 -229.118643 
+L 735.923575 -228.560477 
+L 735.148096 -228.00231 
+L 734.372616 -227.444144 
+L 733.597136 -226.885978 
+L 732.821657 -226.327811 
+L 732.046177 -225.769645 
+L 731.270698 -225.211479 
+L 730.495218 -224.653312 
+L 729.719738 -224.095146 
+L 728.944259 -223.53698 
+L 728.168779 -222.978813 
+L 727.3933 -222.420647 
+L 726.61782 -221.86248 
+L 725.84234 -221.304314 
+L 725.066861 -220.746148 
+L 724.291381 -220.187981 
+L 723.515902 -219.629815 
+L 722.740422 -219.071649 
+L 721.964942 -218.512943 
+L 721.189463 -217.952882 
+L 720.413983 -217.392821 
+L 719.638504 -216.83276 
+L 718.863024 -216.272699 
+L 718.087544 -215.712638 
+L 717.312065 -215.152577 
+L 716.536585 -214.592517 
+L 715.761106 -214.032456 
+L 714.985626 -213.472395 
+L 714.210146 -212.912334 
+L 713.434667 -212.352273 
+L 712.659187 -211.792212 
+L 711.883708 -211.232151 
+L 711.108228 -210.67209 
+L 710.332748 -210.112029 
+L 709.557269 -209.551968 
+L 708.781789 -208.991907 
+L 708.00631 -208.431846 
+L 707.23083 -207.871785 
+L 706.45535 -207.310471 
+L 705.679871 -206.745314 
+L 704.904391 -206.180157 
+L 704.128912 -205.614999 
+L 703.353432 -205.049842 
+L 702.577952 -204.484685 
+L 701.802473 -203.919528 
+L 701.026993 -203.35437 
+L 700.251514 -202.789213 
+L 699.476034 -202.224056 
+L 698.700554 -201.658898 
+L 697.925075 -201.093741 
+L 697.149595 -200.528584 
+L 696.374116 -199.963426 
+L 695.598636 -199.398269 
+L 694.823156 -198.833112 
+L 694.047677 -198.267954 
+L 693.272197 -197.702797 
+L 692.496718 -197.13764 
+L 691.721238 -196.572482 
+L 690.945758 -196.007325 
+L 690.170279 -195.442168 
+L 689.394799 -194.877011 
+L 688.61932 -194.311853 
+L 687.84384 -193.746696 
+L 687.06836 -193.181539 
+L 686.292881 -192.612303 
+L 685.517401 -192.037235 
+L 684.741922 -191.462166 
+L 683.966442 -190.887098 
+L 683.190962 -190.31203 
+L 682.415483 -189.736962 
+L 681.640003 -189.161894 
+L 680.864524 -188.586825 
+L 680.089044 -188.011757 
+L 679.313564 -187.436689 
+L 678.538085 -186.861621 
+L 677.762605 -186.286552 
+L 676.987126 -185.711484 
+L 676.211646 -185.136416 
+L 675.436166 -184.561348 
+L 674.660687 -183.986279 
+L 673.885207 -183.411211 
+L 673.109728 -182.836143 
+L 672.334248 -182.261075 
+L 671.558768 -181.686006 
+L 670.783289 -181.10578 
+L 670.007809 -180.516874 
+L 669.23233 -179.927969 
+L 668.45685 -179.339064 
+L 667.68137 -178.750158 
+L 666.905891 -178.161253 
+L 666.130411 -177.572348 
+L 665.354932 -176.983442 
+L 664.579452 -176.394537 
+L 663.803972 -175.805631 
+L 663.028493 -175.216726 
+L 662.253013 -174.627821 
+L 661.477534 -174.038915 
+L 660.702054 -173.45001 
+L 659.926574 -172.861105 
+L 659.151095 -172.272199 
+L 658.375615 -171.683294 
+z
+" style="stroke: #74e1b5; stroke-opacity: 0.13"/>
+    </defs>
+    <g clip-path="url(#p494eb0b93f)">
+     <use xlink:href="#m36b8a8b27e" x="0" y="338.4" style="fill: #74e1b5; fill-opacity: 0.13; stroke: #74e1b5; stroke-opacity: 0.13"/>
+    </g>
+   </g>
+   <g id="matplotlib.axis_3">
+    <g id="xtick_15">
+     <g id="line2d_38">
+      <path d="M 498.024833 305.04351 
+L 498.024833 18.118365 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_39">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="498.024833" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_20">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="498.024833" y="319.641948" transform="rotate(-0 498.024833 319.641948)">1</text>
+     </g>
+    </g>
+    <g id="xtick_16">
+     <g id="line2d_40">
+      <path d="M 610.10522 305.04351 
+L 610.10522 18.118365 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_41">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="610.10522" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_21">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="610.10522" y="319.641948" transform="rotate(-0 610.10522 319.641948)">5</text>
+     </g>
+    </g>
+    <g id="xtick_17">
+     <g id="line2d_42">
+      <path d="M 658.375615 305.04351 
+L 658.375615 18.118365 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_43">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="658.375615" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_22">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="658.375615" y="319.641948" transform="rotate(-0 658.375615 319.641948)">10</text>
+     </g>
+    </g>
+    <g id="xtick_18">
+     <g id="line2d_44">
+      <path d="M 722.185607 305.04351 
+L 722.185607 18.118365 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_45">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="722.185607" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_23">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="722.185607" y="319.641948" transform="rotate(-0 722.185607 319.641948)">25</text>
+     </g>
+    </g>
+    <g id="xtick_19">
+     <g id="line2d_46">
+      <path d="M 770.456002 305.04351 
+L 770.456002 18.118365 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_47">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="770.456002" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_24">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="770.456002" y="319.641948" transform="rotate(-0 770.456002 319.641948)">50</text>
+     </g>
+    </g>
+    <g id="xtick_20">
+     <g id="line2d_48">
+      <path d="M 818.726397 305.04351 
+L 818.726397 18.118365 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_49">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="818.726397" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_25">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="818.726397" y="319.641948" transform="rotate(-0 818.726397 319.641948)">100</text>
+     </g>
+    </g>
+    <g id="xtick_21">
+     <g id="line2d_50">
+      <path d="M 843.71524 305.04351 
+L 843.71524 18.118365 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_51">
+      <g>
+       <use xlink:href="#ma1e05a4b57" x="843.71524" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_26">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #b0bfd1" x="843.71524" y="319.641948" transform="rotate(-0 843.71524 319.641948)">143</text>
+     </g>
+    </g>
+    <g id="xtick_22">
+     <g id="line2d_52">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="482.485236" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_23">
+     <g id="line2d_53">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="490.687583" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_24">
+     <g id="line2d_54">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="546.295228" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_25">
+     <g id="line2d_55">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="574.531599" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_26">
+     <g id="line2d_56">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="594.565623" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_27">
+     <g id="line2d_57">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="622.801995" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_28">
+     <g id="line2d_58">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="633.536965" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_29">
+     <g id="line2d_59">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="642.836019" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_30">
+     <g id="line2d_60">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="651.038366" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_31">
+     <g id="line2d_61">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="706.64601" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_32">
+     <g id="line2d_62">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="734.882382" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_33">
+     <g id="line2d_63">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="754.916406" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_34">
+     <g id="line2d_64">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="783.152777" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_35">
+     <g id="line2d_65">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="793.887747" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_36">
+     <g id="line2d_66">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="803.186801" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="xtick_37">
+     <g id="line2d_67">
+      <g>
+       <use xlink:href="#mca3065e2bd" x="811.389148" y="305.04351" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="text_27">
+     <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #edf3fc" x="670.870036" y="333.320073" transform="rotate(-0 670.870036 333.320073)">Row count N (millions)</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_4">
+    <g id="ytick_8">
+     <g id="line2d_68">
+      <path d="M 480.740312 290.133603 
+L 860.99976 290.133603 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_69">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="480.740312" y="290.133603" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_28">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="473.740312" y="293.932821" transform="rotate(-0 473.740312 293.932821)">1 s</text>
+     </g>
+    </g>
+    <g id="ytick_9">
+     <g id="line2d_70">
+      <path d="M 480.740312 197.732256 
+L 860.99976 197.732256 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_71">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="480.740312" y="197.732256" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_29">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="473.740312" y="201.531474" transform="rotate(-0 473.740312 201.531474)">1 min</text>
+     </g>
+    </g>
+    <g id="ytick_10">
+     <g id="line2d_72">
+      <path d="M 480.740312 145.767415 
+L 860.99976 145.767415 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_73">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="480.740312" y="145.767415" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_30">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="473.740312" y="149.566633" transform="rotate(-0 473.740312 149.566633)">10 min</text>
+     </g>
+    </g>
+    <g id="ytick_11">
+     <g id="line2d_74">
+      <path d="M 480.740312 105.330909 
+L 860.99976 105.330909 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_75">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="480.740312" y="105.330909" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_31">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="473.740312" y="109.130127" transform="rotate(-0 473.740312 109.130127)">1 h</text>
+     </g>
+    </g>
+    <g id="ytick_12">
+     <g id="line2d_76">
+      <path d="M 480.740312 53.366068 
+L 860.99976 53.366068 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_77">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="480.740312" y="53.366068" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_32">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="473.740312" y="57.165286" transform="rotate(-0 473.740312 57.165286)">10 h</text>
+     </g>
+    </g>
+    <g id="ytick_13">
+     <g id="line2d_78">
+      <path d="M 480.740312 33.608451 
+L 860.99976 33.608451 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #304159; stroke-opacity: 0.65; stroke-width: 0.8; stroke-linecap: square"/>
+     </g>
+     <g id="line2d_79">
+      <g>
+       <use xlink:href="#m8b462ddd11" x="480.740312" y="33.608451" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_33">
+      <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #b0bfd1" x="473.740312" y="37.40767" transform="rotate(-0 473.740312 37.40767)">1 day</text>
+     </g>
+    </g>
+    <g id="ytick_14">
+     <g id="line2d_80">
+      <defs>
+       <path id="m2efce21adb" d="M 0 0 
+L -2 0 
+" style="stroke: #b0bfd1; stroke-width: 0.6"/>
+      </defs>
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="301.661938" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_15">
+     <g id="line2d_81">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="298.183058" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_16">
+     <g id="line2d_82">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="295.169516" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_17">
+     <g id="line2d_83">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="292.511383" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_18">
+     <g id="line2d_84">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="274.490627" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_19">
+     <g id="line2d_85">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="265.340073" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_20">
+     <g id="line2d_86">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="258.847651" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_21">
+     <g id="line2d_87">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="253.811738" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_22">
+     <g id="line2d_88">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="249.697097" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_23">
+     <g id="line2d_89">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="246.218217" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_24">
+     <g id="line2d_90">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="243.204675" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_25">
+     <g id="line2d_91">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="240.546542" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_26">
+     <g id="line2d_92">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="222.525786" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_27">
+     <g id="line2d_93">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="213.375232" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_28">
+     <g id="line2d_94">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="206.88281" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_29">
+     <g id="line2d_95">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="201.846897" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_30">
+     <g id="line2d_96">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="194.253376" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_31">
+     <g id="line2d_97">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="191.239834" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_32">
+     <g id="line2d_98">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="188.581701" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_33">
+     <g id="line2d_99">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="170.560945" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_34">
+     <g id="line2d_100">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="161.410391" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_35">
+     <g id="line2d_101">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="154.917969" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_36">
+     <g id="line2d_102">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="149.882056" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_37">
+     <g id="line2d_103">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="142.288535" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_38">
+     <g id="line2d_104">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="139.274993" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_39">
+     <g id="line2d_105">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="136.61686" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_40">
+     <g id="line2d_106">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="118.596104" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_41">
+     <g id="line2d_107">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="109.44555" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_42">
+     <g id="line2d_108">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="102.953128" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_43">
+     <g id="line2d_109">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="97.917215" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_44">
+     <g id="line2d_110">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="93.802574" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_45">
+     <g id="line2d_111">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="90.323694" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_46">
+     <g id="line2d_112">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="87.310152" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_47">
+     <g id="line2d_113">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="84.652019" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_48">
+     <g id="line2d_114">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="66.631263" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_49">
+     <g id="line2d_115">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="57.480709" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_50">
+     <g id="line2d_116">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="50.988287" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_51">
+     <g id="line2d_117">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="45.952374" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_52">
+     <g id="line2d_118">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="41.837733" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_53">
+     <g id="line2d_119">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="38.358853" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_54">
+     <g id="line2d_120">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="35.345311" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="ytick_55">
+     <g id="line2d_121">
+      <g>
+       <use xlink:href="#m2efce21adb" x="480.740312" y="32.687178" style="fill: #b0bfd1; stroke: #b0bfd1; stroke-width: 0.6"/>
+      </g>
+     </g>
+    </g>
+    <g id="text_34">
+     <text style="font-size: 10px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #edf3fc" x="432.90125" y="161.580938" transform="rotate(-90 432.90125 161.580938)">Complete-run elapsed time</text>
+    </g>
+   </g>
+   <g id="line2d_122">
+    <path d="M 658.375615 171.752619 
+L 678.538085 156.574293 
+L 697.149595 142.90733 
+L 725.84234 122.131599 
+L 787.105229 77.903423 
+L 815.797974 56.935354 
+L 832.083046 44.849779 
+L 843.71524 36.19633 
+L 843.71524 36.19633 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke: #74e1b5; stroke-width: 2; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_123">
+    <path d="M 658.375615 171.752619 
+L 843.71524 51.626681 
+L 843.71524 51.626681 
+" clip-path="url(#p494eb0b93f)" style="fill: none; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #8092a8; stroke-width: 1.5"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 480.740312 305.04351 
+L 480.740312 18.118365 
+" style="fill: none; stroke: #8092a8; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 860.99976 305.04351 
+L 860.99976 18.118365 
+" style="fill: none; stroke: #8092a8; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 480.740312 305.04351 
+L 860.99976 305.04351 
+" style="fill: none; stroke: #8092a8; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 480.740312 18.118365 
+L 860.99976 18.118365 
+" style="fill: none; stroke: #8092a8; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="text_35">
+    <text style="font-weight: 700; font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #edf3fc" x="480.740312" y="12.118365" transform="rotate(-0 480.740312 12.118365)">Runtime estimate, anchored at 10m</text>
+   </g>
+   <g id="PathCollection_5">
+    <defs>
+     <path id="mf473ab2b6e" d="M 0 2.645751 
+C 0.701661 2.645751 1.374679 2.366978 1.870829 1.870829 
+C 2.366978 1.374679 2.645751 0.701661 2.645751 0 
+C 2.645751 -0.701661 2.366978 -1.374679 1.870829 -1.870829 
+C 1.374679 -2.366978 0.701661 -2.645751 0 -2.645751 
+C -0.701661 -2.645751 -1.374679 -2.366978 -1.870829 -1.870829 
+C -2.366978 -1.374679 -2.645751 -0.701661 -2.645751 0 
+C -2.645751 0.701661 -2.366978 1.374679 -1.870829 1.870829 
+C -1.374679 2.366978 -0.701661 2.645751 0 2.645751 
+z
+" style="stroke: #edf3fc"/>
+    </defs>
+    <g clip-path="url(#p494eb0b93f)">
+     <use xlink:href="#mf473ab2b6e" x="498.024833" y="292.001458" style="fill: #edf3fc; stroke: #edf3fc"/>
+     <use xlink:href="#mf473ab2b6e" x="610.10522" y="208.162753" style="fill: #edf3fc; stroke: #edf3fc"/>
+     <use xlink:href="#mf473ab2b6e" x="658.375615" y="171.752619" style="fill: #edf3fc; stroke: #edf3fc"/>
+    </g>
+   </g>
+   <g id="legend_2">
+    <g id="patch_12">
+     <path d="M 488.120312 31.729084 
+L 504.520312 31.729084 
+L 504.520312 25.989084 
+L 488.120312 25.989084 
+z
+" style="fill: #74e1b5; fill-opacity: 0.13; stroke: #74e1b5; stroke-opacity: 0.13; stroke-linejoin: miter"/>
+    </g>
+    <g id="text_36">
+     <text style="font-size: 8.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #edf3fc" x="511.080312" y="31.729084" transform="rotate(-0 511.080312 31.729084)">±25% planning band</text>
+    </g>
+    <g id="line2d_124">
+     <path d="M 488.120312 40.895146 
+L 496.320312 40.895146 
+L 504.520312 40.895146 
+" style="fill: none; stroke: #74e1b5; stroke-width: 2; stroke-linecap: square"/>
+    </g>
+    <g id="text_37">
+     <text style="font-size: 8.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #edf3fc" x="511.080312" y="43.765146" transform="rotate(-0 511.080312 43.765146)">Integrated, sustained model</text>
+    </g>
+    <g id="line2d_125">
+     <path d="M 488.120312 52.931209 
+L 496.320312 52.931209 
+L 504.520312 52.931209 
+" style="fill: none; stroke-dasharray: 5.55,2.4; stroke-dashoffset: 0; stroke: #8092a8; stroke-width: 1.5"/>
+    </g>
+    <g id="text_38">
+     <text style="font-size: 8.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #edf3fc" x="511.080312" y="55.801209" transform="rotate(-0 511.080312 55.801209)">Quadratic reference from 10m</text>
+    </g>
+    <g id="PathCollection_6">
+     <g>
+      <use xlink:href="#mf473ab2b6e" x="496.320312" y="65.684771" style="fill: #edf3fc; stroke: #edf3fc"/>
+     </g>
+    </g>
+    <g id="text_39">
+     <text style="font-size: 8.2px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #edf3fc" x="511.080312" y="67.837271" transform="rotate(-0 511.080312 67.837271)">Complete runs (1m, 5m, 10m)</text>
+    </g>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p11d8c742b5">
+   <rect x="36.403365" y="18.118365" width="380.259447" height="286.925145"/>
+  </clipPath>
+  <clipPath id="p494eb0b93f">
+   <rect x="480.740312" y="18.118365" width="380.259448" height="286.925145"/>
+  </clipPath>
+ </defs>
+</svg><figcaption>Short GPU samples and an empirical rate fit on the left. The full 10m run reveals a sustained-run correction. The right plot integrates the corrected fit and anchors it to that full run. The shaded ±25% band is a planning allowance, not a statistical confidence interval. The smaller complete runs use the unchanged tiled path.</figcaption></figure>
+<h3>Count the work, before fitting the time</h3>
+<p>Define \(\Pi(u)=\#\{p:19\le p\le u\}\), \(S_j(u)=\sum_{19\le p\le u}p^j\), and \(H(u)=\sum_{19\le p\le u}1/p\), with each sum over primes. Let C = 2m for a large run; for a run through 8m, C = N. A prime p is active over approximately \(N^2-p^2\) integer positions. Summing those lengths gives the visit counts:</p>
+<div class="scroll"><table><thead><tr><th>Operation</th><th>Approximate count</th><th>Large-N growth</th></tr></thead><tbody>
+<tr><td>Tile prime-record visits</td><td>\(V_t=\dfrac{N^2\Pi(C)-S_2(C)}{30t}\)</td><td>\(\Theta(N^2)\), fixed C</td></tr>
+<tr><td>Sparse prime/window visits</td><td>\(V_s=\dfrac{N^2[\Pi(N)-\Pi(C)]-[S_2(N)-S_2(C)]}{30W}\)</td><td>\(\Theta(N^3/(W\log N))\)</td></tr>
+<tr><td>Preparation visits</td><td>\(V_p=\dfrac{N^2\Pi(N)-S_2(N)}{30B}\)</td><td>\(\Theta(N^3/(B\log N))\)</td></tr>
+</tbody></table></div>
+<p>These visit formulas ignore batch/window boundary rounding and the early activation of a prime within its first batch. They describe logical visits, not DRAM transactions. From \(\pi(N)\sim N/\log N\) and \(S_2(N)\sim N^3/(3\log N)\), the leading sparse-visit term is \(N^3/(45W\log N)\); preparation has the same form with B replacing W.</p>
+<p>Composite-strike counts are different from visit counts. If</p>
+<div class="formula">\[F(y)=8\left\lfloor\frac y{30}\right\rfloor+\#\{r\in R:r\le y\bmod30\},\]</div>
+<p>then the exact number of wheel-loop hits up to \(N^2\) is</p>
+<div class="formula">\[M(N)=\sum_{19\le p\le N}\left[F\!\left(\left\lfloor N^2/p\right\rfloor\right)-F(p-1)\right].\]</div>
+<p>This counts represented multiples \(pk\) with \(k\ge p\). It grows as \(\Theta(N^2\log\log N)\). To count the filtered global atomics exactly, define \(F_P(y)=\sum_{d\mid P}\mu(d)F(\lfloor y/d\rfloor)\), where the square-free divisor's sign \(\mu(d)\) alternates with the number of factors. Replace F by \(F_P\) and sum only over p &gt; C. At 50m, the sparse loop visits about 114.23 trillion hits and issues about 77.33 trillion atomics after filtering. It does not eliminate the loop iterations.</p>
+<h3>Asymptotic growth versus the useful operating range</h3>
+<div class="formula">\[\text{work}=\Theta\!\left(N^2\log\log N+\frac{N^3}{W\log N}+\frac{N^3}{B\log N}\right),\quad C\text{ fixed}.\]</div>
+<p>This is an operation-count model with fixed hardware, ignoring the implementation's finite row cap. Since B and W are fixed, the prime-visit terms eventually dominate. The code is therefore not asymptotically just a textbook \(N^2\log\log N\) sieve. For small runs that tile every active prime, the tile-visit term instead has \(\Theta(N^3/(t\log N))\) growth.</p>
+<p>There is little empty sparse-window work at 50m. Consecutive modulo-30 multiplier residues have maximum gap 6, so a prime's byte gap is at most \(\lceil p/5\rceil\). When \(N\le5W\approx83.9\text{m}\), every active prime has a modulo-30 candidate hit in every full window, apart from activation and clipped edges. Bucket scheduling could improve the eventual visit bound, but in this range it would mostly schedule work that already has a hit, while adding queue traffic.</p>
+<p>The calibrated runtime model has an effective exponent of about 2.25 over 10–50m. That describes this configuration and range; it is not a new complexity bound. Space grows as \(O(N+\pi(N)+B)\): the GPU's full row-count array is linear in N, prime records and carry are linear in \(\pi(N)\), and the sieve batch is fixed-size.</p>
+<h3>Measured rate model and cumulative runtime</h3>
+<p>For a full late-range batch, the fitted combined preparation, marking and counting time is</p>
+<div class="formula">\[r(n)\approx10.580+1.136\frac{\pi(n)-\pi(C)}{10^6}+35.482[H(n)-H(C)]\quad\text{milliseconds},\quad C=2\text{m}.\]</div>
+<p>The fixed term covers the capped tiled prefix and fixed per-batch work. Prime-count and reciprocal-sum features track window visits and strike density. Their fitted coefficients are empirical and correlated; they are not independently measured instruction costs. Eleven configurations from 8.1m through the row cap gave 3.3% RMS fit error. Leave-one-out prediction had 5.1% RMS error and a 9.4% maximum error.</p>
+<p>A full 10m run took 189.7 seconds and matched all 405,147,067 CSV bytes against the existing 35m prefix. Its final progress intervals were about 1.219 times slower than the short-sample rate fit. The cumulative model applies that factor and integrates batch cost against the number of integer positions:</p>
+<div class="formula">\[T(N)\approx189.7+\frac{1.219}{30B\cdot1000}\int_{(10^7)^2}^{N^2}r(\sqrt{x})\,dx\quad\text{seconds},\qquad N\ge10^7.\]</div>
+<p>The factor 1000 converts milliseconds to seconds. The integral has a direct prime-sum form: \(\int\pi(\sqrt x)dx=x\pi(\sqrt x)-\sum_{p\le\sqrt x}p^2\), and \(\int H(\sqrt x)dx=xH(\sqrt x)-\sum_{p\le\sqrt x}p\). The exported data records the coefficients, prime sums, work counts, samples and sustained correction.</p>
+<div class="formula">\[\boxed{T(N)\approx190\,\text{s}\left(\frac{N}{10^7}\right)^{2.25}}\quad\text{planning rule for 10–50m rows}.\]</div>
+<div class="controls"><label for="scale-rows">Rows (millions, 10–50)</label><input id="scale-rows" type="number" min="10" max="50" step="1" value="50"><output id="scale-estimate" aria-live="polite"></output></div>
+<div class="scroll"><table><thead><tr><th>Rows</th><th>Time</th><th>Basis</th></tr></thead><tbody><tr><td>10k</td><td>about 0.1 s, warm startup</td><td>Measured</td></tr><tr><td>100k</td><td>0.12 s</td><td>Measured</td></tr><tr><td>1m</td><td>0.92 s</td><td>Complete run</td></tr><tr><td>5m</td><td>37.8 s</td><td>Complete run, unchanged tiled path</td></tr><tr><td>10m</td><td>3 min 10 s</td><td>Complete run with filtered sparse path</td></tr><tr><td>25m</td><td>about 25 min; allow 19–32 min</td><td>Integrated model</td></tr><tr><td>50m</td><td>about 1 h 58 min; allow 1 h 29 min–2 h 28 min</td><td>Integrated model</td></tr></tbody></table></div>
+<p class="caption">Times assume this RTX 5080 Laptop GPU and CSV written to a local file. Cold CUDA startup added up to about 2.5 seconds in small tests. The earlier 1¾-hour estimate for 50m used short samples alone; this model includes the sustained-run correction. No complete 25m or 50m run was performed. Power, cooling, storage and the algorithm's regime changes limit extrapolation, especially outside the fitted range.</p>
+</section>
+
+</main> 
+<script> 'use strict'; const $ = id => document.getElementById(id), R = [1, 7, 11, 13, 17, 19, 23, 29]; function prime(n) { if (n < 2) return false; if (n % 2 === 0) return n === 2; for (let d = 3; d * d <= n; d += 2)if (n % d === 0) return false; return true; } function bounded(id, min, max, fallback) { let n = Number($(id).value); if (!Number.isFinite(n)) n = fallback; return Math.min(max, Math.max(min, Math.floor(n))); } function wheel() { const q = bounded('wheel-block', 0, 1000000, 1), stage = $('wheel-stage').value; let cells = '', bits = '', value = 0; for (let r = 0; r < 30; r++) { const x = 30 * q + r, idx = R.indexOf(r), eligible = idx >= 0; let on = eligible; if (stage === 'presieve') on = on && ![7, 11, 13, 17].some(p => x % p === 0); if (stage === 'presieve' && q === 0) on = [7, 11, 13, 17, 19, 23, 29].includes(x); if (stage === 'prime') on = eligible && prime(x); cells += '<div class="wheel-cell' + (eligible ? (on ? ' eligible' : ' removed') : '') + '">' + x + '</div>'; if (eligible) { if (on) value |= 1 << idx; bits += '<div class="bit' + (on ? '' : ' off') + '">' + Number(on) + '<small>bit ' + idx + ' · ' + x + '</small></div>'; } } $('wheel-cells').innerHTML = cells; $('wheel-bits').innerHTML = bits; $('wheel-description').textContent = `Byte ${q} represents ${30 * q}…${30 * q + 29}. Stored value: 0x${value.toString(16).padStart(2, '0').toUpperCase()} (${value.toString(2).padStart(8, '0')}₂, bit 7 first).`; } $('wheel-block').addEventListener('input', wheel); $('wheel-stage').addEventListener('change', wheel); wheel(); 
+
+function updateScalingEstimate() {
+ const input=document.getElementById('scale-rows');
+ const n=Math.min(50,Math.max(10,Number(input.value)||10));
+ const seconds=190*Math.pow(n/10,2.25);
+ const format=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),r=s%60;return h?`${h} h ${m} min`:`${m} min ${r} s`;};
+ document.getElementById('scale-estimate').textContent=`About ${format(seconds)}; planning range ${format(.75*seconds)}–${format(1.25*seconds)}`;
+}
+document.getElementById('scale-rows').addEventListener('input',updateScalingEstimate);
+updateScalingEstimate();
+
+</script> </body> </html>

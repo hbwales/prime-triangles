@@ -1,2 +1,3 @@
-out.csv
+out*.csv
 tri.exe
+bench.exe
