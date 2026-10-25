@@ -1,7 +1,8 @@
 # PrimeTri
 
 Count primes on the left, centre and right of a triangle of consecutive integers.
-See the [illustrated guide](how-it-works.html) for more details.
+See the [illustrated guide](https://hbwales.github.io/prime-triangles/) for more details
+([standalone HTML source](how-it-works.html)).
 
 ## Setup
 
@@ -35,3 +36,11 @@ CSV columns `n,l,c,r` contain the row number and cumulative left, centre and rig
 Progress and final timings go to stderr. 
 
 **Ctrl+C** finishes the current batch and flushes complete rows.
+
+## Publish the guide
+
+Open **Settings → Pages** on GitHub, select **GitHub Actions** as the source,
+then push these changes. The **Publish guide** workflow publishes the HTML
+at <https://hbwales.github.io/prime-triangles/> and updates it when the guide changes
+on `main`. Only the guide is included in the site; result files and binaries stay local.
+You can also start it from **Actions → Publish guide → Run workflow**.

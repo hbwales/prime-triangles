@@ -1,11 +1,3 @@
 out*.csv
 tri.exe
-bench.exe
-bench.cu
-progress_50m.txt
-results-50m.json
-results-50m.svg
-scaling.svg
-analyse-results.sql
-scaling-model.json
-benchmark-small.json
+progress*.txt
